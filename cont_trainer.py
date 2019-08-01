@@ -236,6 +236,8 @@ class DCNN(object):
 
                             for old_task_idx in range(self.task_idx+1):
                                 eval_loss, eval_acc = self.evaluate(old_task_idx)
+                                if not isinstance(eval_loss, float):
+                                    eval_loss = eval_loss.item()
                                 self.plotter.plot(var_name='task acc.',
                                                   split_name='task {}'.format(old_task_idx+1),
                                                   title_name='Task Accuracy',
