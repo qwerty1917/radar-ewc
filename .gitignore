@@ -243,3 +243,5 @@ dmypy.json
 cnn_checkpoint/*
 cnn_output/*
 evaluation/*
+.radar-ewc-env/
+.radar-env/
