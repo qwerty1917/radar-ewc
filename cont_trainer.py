@@ -215,24 +215,39 @@ class DCNN(object):
                         if self.visdom:
                             self.plotter.plot(var_name='loss',
                                               split_name='train',
-                                              title_name='Loss',
+                                              title_name='Current task Loss',
                                               x=self.global_iter,
                                               y=train_loss.item())
                             self.plotter.plot(var_name='loss',
                                               split_name='test',
-                                              title_name='Loss',
+                                              title_name='Current task Loss',
                                               x=self.global_iter,
                                               y=test_loss.item())
                             self.plotter.plot(var_name='acc.',
                                               split_name='train',
-                                              title_name='Accuracy',
+                                              title_name='Current task Accuracy',
                                               x=self.global_iter,
                                               y=train_acc)
                             self.plotter.plot(var_name='acc.',
                                               split_name='test',
-                                              title_name='Accuracy',
+                                              title_name='Current task Accuracy',
                                               x=self.global_iter,
                                               y=test_acc)
+
+                            for old_task_idx in range(self.task_idx+1):
+                                eval_loss, eval_acc = self.evaluate(old_task_idx)
+                                self.plotter.plot(var_name='task acc.',
+                                                  split_name='task {}'.format(old_task_idx+1),
+                                                  title_name='Task Accuracy',
+                                                  x=self.global_iter,
+                                                  y=eval_acc)
+
+                                self.plotter.plot(var_name='task loss',
+                                                  split_name='task {}'.format(old_task_idx+1),
+                                                  title_name='Task Loss',
+                                                  x=self.global_iter,
+                                                  y=eval_loss)
+
 
                     if min_loss is None:
                         min_loss = train_loss.item()
