@@ -240,8 +240,10 @@ dmypy.json
 # End of https://www.gitignore.io/api/macos,python,pycharm
 
 # custom
+.idea/
 cnn_checkpoint/*
 cnn_output/*
 evaluation/*
 .radar-ewc-env/
 .radar-env/
+.env/
