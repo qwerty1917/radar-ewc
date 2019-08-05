@@ -256,13 +256,13 @@ class DCNN(object):
                                                   y=eval_loss)
 
                             self.plotter.plot(var_name='task average acc.',
-                                              split_name='average acc. until task {}'.format(self.task_idx+1),
+                                              split_name='until task {}'.format(self.task_idx+1),
                                               title_name='Task average acc.',
                                               x=self.global_iter,
                                               y=task_acc_sum/(self.task_idx+1))
 
                             self.plotter.plot(var_name='task average loss',
-                                              split_name='average loss until task {}'.format(self.task_idx+1),
+                                              split_name='until task {}'.format(self.task_idx+1),
                                               title_name='Task average loss',
                                               x=self.global_iter,
                                               y=task_loss_sum/(self.task_idx+1))
