@@ -234,8 +234,12 @@ class DCNN(object):
                                               x=self.global_iter,
                                               y=test_acc)
 
+                            task_loss_sum = 0
+                            task_acc_sum = 0
                             for old_task_idx in range(self.task_idx+1):
                                 eval_loss, eval_acc = self.evaluate(old_task_idx)
+                                task_loss_sum += eval_loss
+                                task_acc_sum += eval_acc
                                 if not isinstance(eval_loss, float):
                                     eval_loss = eval_loss.item()
                                 self.plotter.plot(var_name='task acc.',
@@ -249,6 +253,19 @@ class DCNN(object):
                                                   title_name='Task Loss',
                                                   x=self.global_iter,
                                                   y=eval_loss)
+
+                            self.plotter.plot(var_name='task average acc.',
+                                              split_name='average acc. until task {}'.format(self.task_idx+1),
+                                              title_name='Task average acc.',
+                                              x=self.global_iter,
+                                              y=task_acc_sum/(self.task_idx+1))
+
+                            self.plotter.plot(var_name='task average loss',
+                                              split_name='average loss until task {}'.format(self.task_idx+1),
+                                              title_name='Task average loss',
+                                              x=self.global_iter,
+                                              y=task_loss_sum/(self.task_idx+1))
+
 
 
                     if min_loss is None:
