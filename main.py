@@ -41,7 +41,7 @@ if __name__ == "__main__":
     # Optimization
     parser.add_argument('--epoch', default=20, type=int, help='epoch size')
     parser.add_argument('--train_batch_size', default=16, type=int, help='train batch size')
-    parser.add_argument('--test_batch_size', default=4, type=int, help='test batch size')
+    parser.add_argument('--test_batch_size', default=3, type=int, help='test batch size')
     parser.add_argument('--lr', default=0.001, type=float, help='learning rate for the network')
     parser.add_argument('--early_stopping', default=False, type=str2bool, help='early stopping (bool)')
     parser.add_argument('--early_stopping_iter', default=500, type=int, help='training stops when train loss not improved in this iteration')
