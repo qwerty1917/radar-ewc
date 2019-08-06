@@ -16,7 +16,8 @@ from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter
 def weights_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
-        m.weight.data.normal_(0.0, 0.02)
+        # m.weight.data.normal_(0.0, 0.02)
+        nn.init.kaiming_normal(m.weight)
     elif classname.find('BatchNorm') != -1:
         # Estimated variance, must be around 1
         m.weight.data.normal_(1.0, 0.02)
@@ -50,6 +51,7 @@ class DCNN(object):
         self.early_stopping_iter = args.early_stopping_iter
 
         # Visualization
+        self.date = args.date
         self.reset_env = args.reset_env
         self.env_name = args.env_name
         self.visdom = args.visdom
@@ -215,22 +217,22 @@ class DCNN(object):
                         if self.visdom:
                             self.plotter.plot(var_name='loss',
                                               split_name='train',
-                                              title_name='Current task Loss',
+                                              title_name=self.date + '_Current task Loss' + '_lamb{}'.format(self.lamb),
                                               x=self.global_iter,
                                               y=train_loss.item())
                             self.plotter.plot(var_name='loss',
                                               split_name='test',
-                                              title_name='Current task Loss',
+                                              title_name=self.date + '_Current task Loss' + '_lamb{}'.format(self.lamb),
                                               x=self.global_iter,
                                               y=test_loss.item())
                             self.plotter.plot(var_name='acc.',
                                               split_name='train',
-                                              title_name='Current task Accuracy',
+                                              title_name=self.date + '_Current task Accuracy' + '_lamb{}'.format(self.lamb),
                                               x=self.global_iter,
                                               y=train_acc)
                             self.plotter.plot(var_name='acc.',
                                               split_name='test',
-                                              title_name='Current task Accuracy',
+                                              title_name=self.date + '_Current task Accuracy' + '_lamb{}'.format(self.lamb),
                                               x=self.global_iter,
                                               y=test_acc)
 
@@ -245,25 +247,25 @@ class DCNN(object):
                                 task_acc_sum += eval_acc
                                 self.plotter.plot(var_name='task acc.',
                                                   split_name='task {}'.format(old_task_idx+1),
-                                                  title_name='Task Accuracy',
+                                                  title_name=self.date + 'Task Accuracy' + '_lamb{}'.format(self.lamb),
                                                   x=self.global_iter,
                                                   y=eval_acc)
 
                                 self.plotter.plot(var_name='task loss',
                                                   split_name='task {}'.format(old_task_idx+1),
-                                                  title_name='Task Loss',
+                                                  title_name=self.date + 'Task Loss' + '_lamb{}'.format(self.lamb),
                                                   x=self.global_iter,
                                                   y=eval_loss)
 
                             self.plotter.plot(var_name='task average acc.',
                                               split_name='average acc. until task {}'.format(self.task_idx+1),
-                                              title_name='Task average acc.',
+                                              title_name=self.date + 'Task average acc.' + '_lamb{}'.format(self.lamb),
                                               x=self.global_iter,
                                               y=task_acc_sum/(self.task_idx+1))
 
                             self.plotter.plot(var_name='task average loss',
                                               split_name='average loss until task {}'.format(self.task_idx+1),
-                                              title_name='Task average loss',
+                                              title_name=self.date + 'Task average loss' + '_lamb{}'.format(self.lamb),
                                               x=self.global_iter,
                                               y=task_loss_sum/(self.task_idx+1))
 
@@ -283,8 +285,9 @@ class DCNN(object):
             for old_task_idx in range(self.task_idx+1):
                 eval_loss, eval_acc = self.evaluate(old_task_idx)
                 print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(old_task_idx + 1, eval_loss, eval_acc))
+                acc_log[self.task_idx, old_task_idx] = eval_acc
 
-                np.savetxt(self.eval_dir + self.log_name, acc_log, '%.4f')
+                np.savetxt(self.eval_dir + self.log_name + '.txt', acc_log, '%.4f')
                 print('Save at ' + self.eval_dir + self.log_name)
 
             fisher_mat = self.estimate_fisher(self.task_idx)
