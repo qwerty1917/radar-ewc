@@ -81,6 +81,9 @@ class DCNN(object):
         self.gamma = args.gamma
         self.EWC_task_count = 0
 
+        # l2
+        self.l2 = args.l2
+
         if self.ewc and not self.continual:
             raise ValueError("Cannot set EWC with no continual setting")
 
@@ -170,16 +173,17 @@ class DCNN(object):
         acc_log = np.zeros((self.num_tasks, self.num_tasks), dtype=np.float32)
 
         while self.task_idx < self.num_tasks:
+
+            if self.continual:
+                data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
+            else:
+                data_loader = self.data_loader['train']
+
             while True:
                 if self.epoch_i >= self.epoch or early_stop:
                     self.epoch_i = 0
                     break
                 self.epoch_i += 1
-
-                if self.continual:
-                    data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
-                else:
-                    data_loader = self.data_loader['train']
 
                 for i, (images, labels) in enumerate(data_loader):
                     images = cuda(images, self.cuda)
@@ -290,9 +294,15 @@ class DCNN(object):
                 np.savetxt(self.eval_dir + self.log_name + '.txt', acc_log, '%.4f')
                 print('Save at ' + self.eval_dir + self.log_name)
 
-            fisher_mat = self.estimate_fisher(self.task_idx)
-            self.store_fisher_n_params(fisher_mat)
-            print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
+            if self.ewc:
+                fisher_mat = self.estimate_fisher(self.task_idx)
+                self.store_fisher_n_params(fisher_mat)
+                print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
+                self.task_idx += 1
+            elif self.l2:
+                self.store_params()
+                print('Parameters for task {} stored successfully!'.format(self.task_idx+1))
+
             self.task_idx += 1
 
     def log_csv(self, task, epoch, g_iter, train_loss, train_acc, test_loss, test_acc, filename='log.csv'):
@@ -344,6 +354,8 @@ class DCNN(object):
         reg_loss = 0.
         if self.ewc:
             reg_loss = self.ewc_loss()
+        elif self.l2:
+            reg_loss = self.l2_loss()
 
         return loss + self.lamb * reg_loss
 
@@ -411,7 +423,7 @@ class DCNN(object):
             losses = []
             # If "offline EWC", loop over all previous tasks (if "online EWC", [EWC_task_count]=1 so only 1 iteration)
             for task in range(1, self.EWC_task_count + 1):
-                for n, p in self.C.named_parameters(): # TODO: actor_critic -> C 로 변경함 (unresolved reference)
+                for n, p in self.C.named_parameters():
                     if p.requires_grad:
                         # Retrieve stored mode (MAP estimate) and precision (Fisher Information matrix)
                         n = n.replace('.', '__')
@@ -421,6 +433,38 @@ class DCNN(object):
                         fisher = self.gamma * fisher if self.online else fisher
                         # Calculate EWC-loss
                         losses.append((fisher * (p - mean) ** 2).sum())
+            # Sum EWC-loss from all parameters (and from all tasks, if "offline EWC")
+            return (1. / 2) * sum(losses)
+        else:
+            # EWC-loss is 0 if there are no stored mode and precision yet
+            return 0.
+
+    # ----------------- l2-specifc functions -----------------#
+
+    def store_params(self):
+
+        # Store new values in the network
+        for n, p in self.C.named_parameters():
+            if p.requires_grad:
+                n = n.replace('.', '__')
+                # -mode (=MAP parameter estimate)
+                self.C.register_buffer('{}_prev_task{}'.format(n, self.EWC_task_count + 1),
+                                     p.detach().clone())
+        s
+
+    def l2_loss(self):
+        '''Calculate l2-loss.'''
+        if self.EWC_task_count > 0:
+            losses = []
+            # If "offline EWC", loop over all previous tasks (if "online EWC", [EWC_task_count]=1 so only 1 iteration)
+            for task in range(1, self.EWC_task_count + 1):
+                for n, p in self.C.named_parameters():
+                    if p.requires_grad:
+                        # Retrieve stored mode (MAP estimate) and precision (Fisher Information matrix)
+                        n = n.replace('.', '__')
+                        mean = getattr(self.C, '{}_EWC_prev_task{}'.format(n, task))
+                        # Calculate EWC-loss
+                        losses.append(((p - mean) ** 2).sum())
             # Sum EWC-loss from all parameters (and from all tasks, if "offline EWC")
             return (1. / 2) * sum(losses)
         else:

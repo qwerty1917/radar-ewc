@@ -82,6 +82,9 @@ if __name__ == "__main__":
     parser.add_argument('--online', default=False, type=str2bool, help='Apply online EWC')
     parser.add_argument('--gamma', default=1.0, type=float, help='online ewc gamma')
 
+    #l2
+    parser.add_argument('--l2', default=False, type=str2bool, help='Apply l2 constraint')
+
     args = parser.parse_args()
 
     main(args)
