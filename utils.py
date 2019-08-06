@@ -144,6 +144,9 @@ def make_log_name(args):
     if args.ewc:
         log_name += '_ewc'
         log_name += '_lamb{}'.format(args.lamb)
+    elif args.l2:
+        log_name += '_l2'
+        log_name += '_lamb{}'.format(args.lamb)
     else:
         log_name += '_fine'
 
