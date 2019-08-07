@@ -450,7 +450,6 @@ class DCNN(object):
                 # -mode (=MAP parameter estimate)
                 self.C.register_buffer('{}_prev_task{}'.format(n, self.EWC_task_count + 1),
                                      p.detach().clone())
-        s
 
     def l2_loss(self):
         '''Calculate l2-loss.'''
