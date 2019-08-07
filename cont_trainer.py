@@ -214,8 +214,8 @@ class DCNN(object):
 
                     if self.global_iter % 10 == 0:
                         # make csv file
-                        self.log_csv(self.task_idx, self.epoch_i, self.global_iter, train_loss.item(), train_acc, test_loss.item(), test_acc)
-                        self.save_checkpoint()
+                        self.log_csv(self.task_idx, self.epoch_i, self.global_iter, train_loss.item(), train_acc, test_loss.item(), test_acc, filename=self.log_name)
+                        self.save_checkpoint(filename=self.log_name+'_ckpt.tar')
 
                         # visdom
                         if self.visdom:
