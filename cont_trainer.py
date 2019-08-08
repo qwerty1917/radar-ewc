@@ -298,7 +298,6 @@ class DCNN(object):
                 fisher_mat = self.estimate_fisher(self.task_idx)
                 self.store_fisher_n_params(fisher_mat)
                 print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
-                self.task_idx += 1
             elif self.l2:
                 self.store_params()
                 print('Parameters for task {} stored successfully!'.format(self.task_idx+1))
