@@ -75,14 +75,18 @@ if __name__ == "__main__":
 
     # Continual Learning
     parser.add_argument('--continual', default=True, type=str2bool, help='continual learning')
+    parser.add_argument('--lamb', default=0., type=float, help='regularization strength')
 
     # EWC
     parser.add_argument('--ewc', default=False, type=str2bool, help='Apply ewc constraint')
-    parser.add_argument('--lamb', default=0., type=float, help='ewc regularization strength')
     parser.add_argument('--online', default=False, type=str2bool, help='Apply online EWC')
     parser.add_argument('--gamma', default=1.0, type=float, help='online ewc gamma')
 
-    #l2
+    # SI
+    parser.add_argument('--si', default=False, type=str2bool, help='Apply si constraint')
+    parser.add_argument('--si_eps', default=0.1, type=float, help='si epsilon')
+
+    # l2
     parser.add_argument('--l2', default=False, type=str2bool, help='Apply l2 constraint')
 
     args = parser.parse_args()

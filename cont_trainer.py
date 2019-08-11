@@ -9,7 +9,7 @@ import shutil
 import numpy as np
 from dataloader import return_data
 from model import Dcnn
-from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter
+from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter, freeze_model
 
 
 ## Weights init function, DCGAN use 0.02 std
@@ -79,7 +79,11 @@ class DCNN(object):
         self.lamb = args.lamb
         self.online = args.online
         self.gamma = args.gamma
-        self.EWC_task_count = 0
+        self.task_count = 0
+
+        # SI
+        self.si = args.si
+        self.si_eps = args.si_eps
 
         # l2
         self.l2 = args.l2
@@ -90,6 +94,9 @@ class DCNN(object):
     def model_init(self):
         # TODO: CNN model_init
         self.C = Dcnn(self.input_channel)
+        if self.continual:
+            self.C_old = Dcnn(self.input_channel)
+            self.C_old.load_state_dict(self.C.state_dict())
 
         self.C.apply(weights_init)
 
@@ -172,12 +179,29 @@ class DCNN(object):
 
         acc_log = np.zeros((self.num_tasks, self.num_tasks), dtype=np.float32)
 
+        if self.si:
+            # Register starting param-values (needed for "intelligent synapses").
+            for n, p in self.C.named_parameters():
+                if p.requires_grad:
+                    n = n.replace('.', '__')
+                    self.C.register_buffer('{}_SI_prev_task'.format(n), p.data.clone())
+
         while self.task_idx < self.num_tasks:
 
             if self.continual:
                 data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
             else:
                 data_loader = self.data_loader['train']
+
+            # Prepare <dicts> to store running importance estimates and param-values before update ("Synaptic Intelligence
+            if self.si:
+                W = {}
+                p_old = {}
+                for n, p in self.C.named_parameters():
+                    if p.requires_grad:
+                        n = n.replace('.', '__')
+                        W[n] = p.data.clone().zero_()
+                        p_old[n] = p.data.clone()
 
             while True:
                 if self.epoch_i >= self.epoch or early_stop:
@@ -204,6 +228,15 @@ class DCNN(object):
                     total = labels.size(0)
                     correct = (predicted == labels).sum().item()
                     train_acc = 100 * correct / total
+
+                    # Update running parameter importance estimates in W
+                    if self.si:
+                        for n, p in self.C.named_parameters():
+                            if p.requires_grad:
+                                n = n.replace('.', '__')
+                                if p.grad is not None:
+                                    W[n].add_(-p.grad * (p.detach() - p_old[n]))
+                                p_old[n] = p.detach().clone()
 
                     if self.global_iter % 1 == 0:
 
@@ -298,6 +331,12 @@ class DCNN(object):
                 fisher_mat = self.estimate_fisher(self.task_idx)
                 self.store_fisher_n_params(fisher_mat)
                 print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
+
+            # SI: calculate and update the normalized path integral
+            elif self.si:
+                self.update_omega(W, self.si_eps)
+                print('omega for si updated successfully')
+
             elif self.l2:
                 self.store_params()
                 print('Parameters for task {} stored successfully!'.format(self.task_idx+1))
@@ -353,6 +392,8 @@ class DCNN(object):
         reg_loss = 0.
         if self.ewc:
             reg_loss = self.ewc_loss()
+        elif self.si:
+            reg_loss = self.surrogate_loss()
         elif self.l2:
             reg_loss = self.l2_loss()
 
@@ -390,10 +431,11 @@ class DCNN(object):
                     if p.grad is not None:
                         est_fisher_info[n] += p.grad.detach() ** 2
 
-        for n, p in self.C.named_parameters():
-            if p.requires_grad:
-                n = n.replace('.', '__')
-                est_fisher_info[n] /= (i+1)
+        with torch.no_grad():
+            for n, p in self.C.named_parameters():
+                if p.requires_grad:
+                    n = n.replace('.', '__')
+                    est_fisher_info[n] /= (i+1)
 
         return est_fisher_info
 
@@ -404,24 +446,24 @@ class DCNN(object):
             if p.requires_grad:
                 n = n.replace('.', '__')
                 # -mode (=MAP parameter estimate)
-                self.C.register_buffer('{}_EWC_prev_task{}'.format(n, "" if self.online else self.EWC_task_count + 1),
+                self.C.register_buffer('{}_EWC_prev_task{}'.format(n, "" if self.online else self.task_count + 1),
                                      p.detach().clone())
                 # -precision (approximated by diagonal Fisher Information matrix)
-                if self.online and self.EWC_task_count == 1:
+                if self.online and self.task_count == 1:
                     existing_values = getattr(self.C, '{}_EWC_estimated_fisher'.format(n))
                     fisher[n] += self.gamma * existing_values
-                self.C.register_buffer('{}_EWC_estimated_fisher{}'.format(n, "" if self.online else self.EWC_task_count + 1),
+                self.C.register_buffer('{}_EWC_estimated_fisher{}'.format(n, "" if self.online else self.task_count + 1),
                                      fisher[n])
 
         # If "offline EWC", increase task-count (for "online EWC", set it to 1 to indicate EWC-loss can be calculated)
-        self.EWC_task_count = 1 if self.online else self.EWC_task_count + 1
+        self.task_count = 1 if self.online else self.task_count + 1
 
     def ewc_loss(self):
         '''Calculate EWC-loss.'''
-        if self.EWC_task_count > 0:
-            losses = []
+        if self.task_count > 0:
+            losses = 0
             # If "offline EWC", loop over all previous tasks (if "online EWC", [EWC_task_count]=1 so only 1 iteration)
-            for task in range(1, self.EWC_task_count + 1):
+            for task in range(1, self.task_count + 1):
                 for n, p in self.C.named_parameters():
                     if p.requires_grad:
                         # Retrieve stored mode (MAP estimate) and precision (Fisher Information matrix)
@@ -431,11 +473,55 @@ class DCNN(object):
                         # If "online EWC", apply decay-term to the running sum of the Fisher Information matrices
                         fisher = self.gamma * fisher if self.online else fisher
                         # Calculate EWC-loss
-                        losses.append((fisher * (p - mean) ** 2).sum())
+                        losses += (fisher * (p - mean).pow(2)).sum()
             # Sum EWC-loss from all parameters (and from all tasks, if "offline EWC")
-            return (1. / 2) * sum(losses)
+            return losses/2.
         else:
             # EWC-loss is 0 if there are no stored mode and precision yet
+            return 0.
+
+    # ------------- "Synaptic Intelligence Synapses"-specifc functions -------------#
+    def update_omega(self, W, epsilon):
+        '''After completing training on a task, update the per-parameter regularization strength.
+        [W]         <dict> estimated parameter-specific contribution to changes in total loss of completed task
+        [epsilon]   <float> dampening parameter (to bound [omega] when [p_change] goes to 0)'''
+
+        # Loop over all parameters
+        for n, p in self.C.named_parameters():
+            if p.requires_grad:
+                n = n.replace('.', '__')
+
+                # Find/calculate new values for quadratic penalty on parameters
+                p_prev = getattr(self.C, '{}_SI_prev_task'.format(n))
+                p_current = p.detach().clone()
+                p_change = p_current - p_prev
+                omega_add = W[n] / (p_change ** 2 + epsilon)
+                try:
+                    omega = getattr(self.C, '{}_SI_omega'.format(n))
+                except AttributeError:
+                    omega = p.detach().clone().zero_()
+                omega_new = omega + omega_add
+
+                # Store these new values in the model
+                self.C.register_buffer('{}_SI_prev_task'.format(n), p_current)
+                self.C.register_buffer('{}_SI_omega'.format(n), omega_new)
+
+
+    def surrogate_loss(self):
+        '''Calculate SI's surrogate loss.'''
+        if self.task_count > 0:
+            losses = 0
+            for n, p in self.C.named_parameters():
+                if p.requires_grad:
+                    # Retrieve previous parameter values and their normalized path integral (i.e., omega)
+                    n = n.replace('.', '__')
+                    prev_values = getattr(self.C, '{}_SI_prev_task'.format(n))
+                    omega = getattr(self.C, '{}_SI_omega'.format(n))
+                    # Calculate SI's surrogate loss, sum over all parameters
+                    losses += (omega * (p - prev_values).pow(2)).sum()
+            return losses/2.
+        else:
+            # SI-loss is 0 if there is no stored omega yet
             return 0.
 
     # ----------------- l2-specifc functions -----------------#
@@ -447,24 +533,24 @@ class DCNN(object):
             if p.requires_grad:
                 n = n.replace('.', '__')
                 # -mode (=MAP parameter estimate)
-                self.C.register_buffer('{}_prev_task{}'.format(n, self.EWC_task_count + 1),
+                self.C.register_buffer('{}_prev_task{}'.format(n, self.task_count + 1),
                                      p.detach().clone())
 
     def l2_loss(self):
         '''Calculate l2-loss.'''
-        if self.EWC_task_count > 0:
-            losses = []
+        if self.task_count > 0:
+            losses = 0
             # If "offline EWC", loop over all previous tasks (if "online EWC", [EWC_task_count]=1 so only 1 iteration)
-            for task in range(1, self.EWC_task_count + 1):
+            for task in range(1, self.task_count + 1):
                 for n, p in self.C.named_parameters():
                     if p.requires_grad:
                         # Retrieve stored mode (MAP estimate) and precision (Fisher Information matrix)
                         n = n.replace('.', '__')
-                        mean = getattr(self.C, '{}_EWC_prev_task{}'.format(n, task))
+                        mean = getattr(self.C, '{}_prev_task{}'.format(n, task))
                         # Calculate EWC-loss
-                        losses.append(((p - mean) ** 2).sum())
+                        losses += (p - mean).pow(2).sum()
             # Sum EWC-loss from all parameters (and from all tasks, if "offline EWC")
-            return (1. / 2) * sum(losses)
+            return losses/2.
         else:
             # EWC-loss is 0 if there are no stored mode and precision yet
             return 0.
