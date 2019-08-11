@@ -9,7 +9,7 @@ import shutil
 import numpy as np
 from dataloader import return_data
 from model import Dcnn
-from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter, freeze_model
+from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter
 
 
 ## Weights init function, DCGAN use 0.02 std
