@@ -94,9 +94,6 @@ class DCNN(object):
     def model_init(self):
         # TODO: CNN model_init
         self.C = Dcnn(self.input_channel)
-        if self.continual:
-            self.C_old = Dcnn(self.input_channel)
-            self.C_old.load_state_dict(self.C.state_dict())
 
         self.C.apply(weights_init)
 
