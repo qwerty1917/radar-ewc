@@ -435,6 +435,8 @@ class DCNN(object):
                     n = n.replace('.', '__')
                     est_fisher_info[n] /= (i+1)
 
+        self.set_mode('train')
+
         return est_fisher_info
 
     def store_fisher_n_params(self, fisher):
