@@ -147,6 +147,9 @@ def make_log_name(args):
     elif args.l2:
         log_name += '_l2'
         log_name += '_lamb{}'.format(args.lamb)
+    elif args.si:
+        log_name += '_si'
+        log_name += '_lamb{}_eps{}'.format(args.lamb, args.si_eps)
     else:
         log_name += '_fine'
 
