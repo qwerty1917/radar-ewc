@@ -379,7 +379,8 @@ class DCNN(object):
                 # print("Epoch: {}, iter: {}, test loss: {:.3f}, Test acc.: {:.3f}".format(self.epoch_i, self.global_iter, test_loss, eval_acc))
             eval_acc = eval_acc / (i+1)
             test_loss = test_loss / (i+1)
-
+        # reset model to train mode
+        self.set_mode('train')
         return test_loss, eval_acc
 
     def compute_loss(self,outputs, targets):
