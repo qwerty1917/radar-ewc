@@ -191,3 +191,8 @@ class VisdomLinePlotter(object):
                           win=self.plots[var_name],
                           name=split_name,
                           update='append')
+
+def set_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    np.random.seed(seed)

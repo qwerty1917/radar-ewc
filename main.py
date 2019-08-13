@@ -4,16 +4,14 @@ import argparse
 
 from cont_trainer import DCNN
 
-from utils import str2bool
+from utils import str2bool, set_seed
 
 def main(args):
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
 
     seed = args.seed
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    np.random.seed(seed)
+    set_seed(seed)
 
     np.set_printoptions(precision=4)
     torch.set_printoptions(precision=4)

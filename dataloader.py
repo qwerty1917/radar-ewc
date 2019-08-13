@@ -9,13 +9,16 @@ from torchvision.datasets import ImageFolder
 import random
 import os
 from os.path import join
-from utils import list_dir, list_files
+from utils import list_dir, set_seed
 
 
 def return_data(args):
     # TODO: cnn_datasets return_data
     # train_dset_dir = args.train_dset_dir
     # test_dset_dir = args.test_dset_dir
+
+    set_seed(args.seed)
+
     train_batch_size = args.train_batch_size
     test_batch_size = args.test_batch_size
     num_workers = args.num_workers

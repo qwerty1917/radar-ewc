@@ -9,7 +9,8 @@ import shutil
 import numpy as np
 from dataloader import return_data
 from model import Dcnn
-from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter
+from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter, set_seed
+
 
 
 ## Weights init function, DCGAN use 0.02 std
@@ -18,6 +19,10 @@ def weights_init(m):
     if classname.find('Conv') != -1:
         # m.weight.data.normal_(0.0, 0.02)
         nn.init.kaiming_normal_(m.weight)
+        m.bias.data.fill_(0)
+    elif classname.find('Linear') != -1:
+        nn.init.kaiming_normal_(m.weight)
+        m.bias.data.fill_(0)
     elif classname.find('BatchNorm') != -1:
         # Estimated variance, must be around 1
         m.weight.data.normal_(1.0, 0.02)
@@ -28,6 +33,8 @@ def weights_init(m):
 class DCNN(object):
     def __init__(self, args):
         self.args = args
+
+        set_seed(args.seed)
 
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
