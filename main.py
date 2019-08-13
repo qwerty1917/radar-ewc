@@ -4,16 +4,14 @@ import argparse
 
 from cont_trainer import DCNN
 
-from utils import str2bool
+from utils import str2bool, set_seed
 
 def main(args):
     torch.backends.cudnn.enabled = True
-    torch.backends.cudnn.benchmark = True
+    # torch.backends.cudnn.benchmark = True
 
     seed = args.seed
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    np.random.seed(seed)
+    set_seed(seed)
 
     np.set_printoptions(precision=4)
     torch.set_printoptions(precision=4)
@@ -75,12 +73,19 @@ if __name__ == "__main__":
 
     # Continual Learning
     parser.add_argument('--continual', default=True, type=str2bool, help='continual learning')
+    parser.add_argument('--lamb', default=0., type=float, help='regularization strength')
 
     # EWC
     parser.add_argument('--ewc', default=False, type=str2bool, help='Apply ewc constraint')
-    parser.add_argument('--lamb', default=0., type=float, help='ewc regularization strength')
     parser.add_argument('--online', default=False, type=str2bool, help='Apply online EWC')
     parser.add_argument('--gamma', default=1.0, type=float, help='online ewc gamma')
+
+    # SI
+    parser.add_argument('--si', default=False, type=str2bool, help='Apply si constraint')
+    parser.add_argument('--si_eps', default=0.1, type=float, help='si epsilon')
+
+    # l2
+    parser.add_argument('--l2', default=False, type=str2bool, help='Apply l2 constraint')
 
     args = parser.parse_args()
 

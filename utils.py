@@ -7,6 +7,7 @@ import torch
 from torch import nn
 from visdom import Visdom
 import numpy as np
+import random
 
 import os
 
@@ -144,6 +145,12 @@ def make_log_name(args):
     if args.ewc:
         log_name += '_ewc'
         log_name += '_lamb{}'.format(args.lamb)
+    elif args.l2:
+        log_name += '_l2'
+        log_name += '_lamb{}'.format(args.lamb)
+    elif args.si:
+        log_name += '_si'
+        log_name += '_lamb{}_eps{}'.format(args.lamb, args.si_eps)
     else:
         log_name += '_fine'
 
@@ -185,3 +192,11 @@ class VisdomLinePlotter(object):
                           win=self.plots[var_name],
                           name=split_name,
                           update='append')
+
+def set_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
