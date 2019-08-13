@@ -8,7 +8,7 @@ from utils import str2bool, set_seed
 
 def main(args):
     torch.backends.cudnn.enabled = True
-    torch.backends.cudnn.benchmark = True
+    # torch.backends.cudnn.benchmark = True
 
     seed = args.seed
     set_seed(seed)

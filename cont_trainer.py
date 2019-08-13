@@ -332,7 +332,7 @@ class DCNN(object):
                 print('Save at ' + self.eval_dir + self.log_name)
 
             if self.ewc:
-                fisher_mat = self.estimate_fisher(self.task_idx)
+                fisher_mat = self.estimate_fisher(data_loader)
                 self.store_fisher_n_params(fisher_mat)
                 print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
 
@@ -406,7 +406,7 @@ class DCNN(object):
 
     # ----------------- EWC-specifc functions -----------------#
 
-    def estimate_fisher(self, task_idx):
+    def estimate_fisher(self, data_loader):
         '''After completing training on a task, estimate diagonal of Fisher Information matrix.
         [data_loader]:          <DataLoadert> to be used to estimate FI-matrix'''
 
@@ -419,7 +419,7 @@ class DCNN(object):
                 n = n.replace('.', '__')
                 est_fisher_info[n] = p.detach().clone().zero_()
 
-        for i, (images, labels) in enumerate(self.data_loader['task{}'.format(task_idx)]['train']):
+        for i, (images, labels) in enumerate(data_loader):
             images = cuda(images, self.cuda)
             labels = cuda(labels, self.cuda)
 

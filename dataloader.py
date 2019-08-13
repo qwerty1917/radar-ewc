@@ -11,7 +11,6 @@ import os
 from os.path import join
 from utils import list_dir, set_seed
 
-
 def return_data(args):
     # TODO: cnn_datasets return_data
     # train_dset_dir = args.train_dset_dir
@@ -95,6 +94,10 @@ def return_data(args):
     data_loader['train'] = train_loader
     data_loader['test'] = test_loader
     """
+
+    def _init_fn(worker_id):
+        np.random.seed(int(args.seed))
+
     data_loader = {}
     if args.incremental:
         root = './data/per_acitivity/'
@@ -122,10 +125,10 @@ def return_data(args):
 
             train_loader = DataLoader(train_imagefolders[i], batch_size=train_batch_size,
                                       shuffle=True, num_workers=num_workers,
-                                      pin_memory=True, drop_last=True)
+                                      pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
             test_loader = DataLoader(test_imagefolders[i], batch_size=test_batch_size,
                                      shuffle=True, num_workers=num_workers,
-                                     pin_memory=True, drop_last=True)
+                                     pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
 
             data_loader['task{}'.format(i)]['train'] = train_loader
             data_loader['task{}'.format(i)]['test'] = test_loader
@@ -136,10 +139,10 @@ def return_data(args):
 
         train_loader = DataLoader(train_data_concat, batch_size=train_batch_size,
                                   shuffle=True, num_workers=num_workers,
-                                  pin_memory=True, drop_last=True)
+                                  pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
         test_loader = DataLoader(test_data_concat, batch_size=test_batch_size,
                                  shuffle=True, num_workers=num_workers,
-                                 pin_memory=True, drop_last=True)
+                                 pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
 
         data_loader['train'] = train_loader
         data_loader['test'] = test_loader
