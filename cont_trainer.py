@@ -1,16 +1,17 @@
 import csv
 import os
+import shutil
 from pathlib import Path
 
+import numpy as np
 import torch
 from torch import optim, nn
-import shutil
 
-import numpy as np
+import utils
 from dataloader import return_data
-from model import Dcnn
-from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter, set_seed
-
+from gan_trainer import WGAN
+from models.cnn import Dcnn
+from utils import cuda, make_log_name, check_log_dir, VisdomPlotter, VisdomImagesPlotter, set_seed
 
 
 ## Weights init function, DCGAN use 0.02 std
@@ -41,6 +42,7 @@ class DCNN(object):
         self.eval_dir = args.eval_dir
         check_log_dir(self.eval_dir)
         self.log_name = make_log_name(args)
+        self.eval_file_path = self.eval_dir + self.log_name + '.txt'
 
         # Misc
         self.cuda = args.cuda and torch.cuda.is_available()
@@ -65,7 +67,8 @@ class DCNN(object):
         self.visdom_port = args.visdom_port
         self.ckpt_dir = Path(args.ckpt_dir).joinpath(args.env_name)
         self.output_dir = Path(args.output_dir).joinpath(args.env_name)
-        self.summary_dir = Path("./tensorboard_logs/").joinpath(self.env_name)
+        self.line_plotter = None
+        self.images_plotter = None
         self.visualization_init()
 
         # Network
@@ -76,7 +79,7 @@ class DCNN(object):
         self.model_init()
 
         # Dataset
-        self.data_loader, self.num_tasks = return_data(args)
+        self.data_loader, self.num_tasks, self.transform = return_data(args)
 
         # Continual Learning
         self.continual = args.continual
@@ -95,11 +98,19 @@ class DCNN(object):
         # l2
         self.l2 = args.l2
 
+        # Generative replay
+        self.gr = args.gr
+        self.replay_r = args.replay_r
+        self.gan_net = None
+
+        if self.gr and not self.continual:
+            raise ValueError("if you want to set --gr=true, you must set --continual=true .")
+
         if self.ewc and not self.continual:
             raise ValueError("Cannot set EWC with no continual setting")
 
     def model_init(self):
-        # TODO: CNN model_init
+        # CNN model_init
         self.C = Dcnn(self.input_channel)
 
         self.C.apply(weights_init)
@@ -126,14 +137,18 @@ class DCNN(object):
             self.output_dir.mkdir(parents=True, exist_ok=True)
 
         if self.visdom:
-            self.plotter = VisdomLinePlotter(env_name=self.env_name, port=self.visdom_port)
+            self.line_plotter = VisdomPlotter(env_name=self.env_name, port=self.visdom_port)
+            self.images_plotter = VisdomImagesPlotter(env_name=self.env_name, port=self.visdom_port)
 
     def delete_logs(self):
-        dirs_to_del = [self.ckpt_dir, self.output_dir, self.summary_dir]
+        dirs_to_del = [self.ckpt_dir, self.output_dir, self.eval_file_path]
 
         for dir_to_del in dirs_to_del:
             if os.path.exists(str(dir_to_del)):
-                shutil.rmtree(str(dir_to_del))
+                if os.path.isdir(str(dir_to_del)):
+                    shutil.rmtree(str(dir_to_del))
+                else:
+                    os.remove(str(dir_to_del))
 
     def set_mode(self, mode='train'):
         if mode == 'train':
@@ -144,7 +159,7 @@ class DCNN(object):
             raise ('mode error. It should be either train or eval')
 
     def save_checkpoint(self, filename='ckpt_cnn.tar'):
-        # TODO: CNN save_checkpoint
+        # CNN save_checkpoint
         model_states = {'C': self.C.state_dict()}
         optim_states = {'C_optim':self.C_optim.state_dict()}
         states = {'args': self.args,
@@ -194,8 +209,25 @@ class DCNN(object):
 
             if self.continual:
                 data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
+                data_loaders = {"real": data_loader}
+
+                if self.gr and self.task_idx > 0:
+                    # 이전 task scholar(gan model)로 replay 이미지 생성하고 Concat dataset. 비율은 동일하게.
+                    replay_n = int(data_loader.dataset.__len__())
+                    replay_x = self.gan_net.replay(replay_n=replay_n)
+                    replay_y = self.predict(replay_x)
+                    merged_loader = utils.make_combined_dataloader(real_data_loader=data_loader,
+                                                                   replay_x=replay_x,
+                                                                   replay_y=replay_y,
+                                                                   transform=self.transform)
+                    replay_loader = utils.make_replay_dataloader(real_data_loader=data_loader,
+                                                                 replay_x=replay_x,
+                                                                 replay_y=replay_y,
+                                                                 transform=self.transform)
+                    data_loaders["replay"] = replay_loader
             else:
                 data_loader = self.data_loader['train']
+                data_loaders = {"real": data_loader}
 
             # Prepare <dicts> to store running importance estimates and param-values before update ("Synaptic Intelligence
             if self.si:
@@ -213,14 +245,28 @@ class DCNN(object):
                     break
                 self.epoch_i += 1
 
-                for i, (images, labels) in enumerate(data_loader):
-                    images = cuda(images, self.cuda)
-                    labels = cuda(labels, self.cuda)
+                for i, (_, _) in enumerate(data_loaders["real"]):
+                    real_images, real_labels = next(iter(data_loaders["real"]))
+                    real_images = cuda(real_images, self.cuda)
+                    real_labels = cuda(real_labels, self.cuda)
 
                     self.global_iter += 1
                     # Forward
-                    outputs = self.C(images)
-                    train_loss = self.compute_loss(outputs, labels)
+                    real_outputs = self.C(real_images)
+                    train_real_loss = self.compute_loss(real_outputs, real_labels)
+
+                    if self.gr and self.task_idx > 0:
+                        replay_images, replay_labels = next(iter(data_loaders["replay"]))
+                        replay_images = cuda(replay_images, self.cuda)
+                        replay_labels = cuda(replay_labels, self.cuda)
+
+                        # Forward
+                        replay_outputs = self.C(replay_images)
+                        train_replay_loss = self.compute_loss(replay_outputs, replay_labels)
+
+                        train_loss = train_real_loss * self.replay_r + train_replay_loss * (1 - self.replay_r)
+                    else:
+                        train_loss = train_real_loss
 
                     # Backward
                     self.C_optim.zero_grad()
@@ -228,10 +274,18 @@ class DCNN(object):
                     self.C_optim.step()
 
                     # train acc
-                    _, predicted = torch.max(outputs, 1)
-                    total = labels.size(0)
-                    correct = (predicted == labels).sum().item()
-                    train_acc = 100 * correct / total
+                    _, real_predicted = torch.max(real_outputs, 1)
+                    real_total = real_labels.size(0)
+                    real_correct = (real_predicted == real_labels).sum().item()
+
+                    if self.gr and self.task_idx > 0:
+                        _, replay_predicted = torch.max(replay_outputs, 1)
+                        replay_total = replay_labels.size(0)
+                        replay_correct = (replay_predicted == replay_labels).sum().item()
+
+                        train_acc = 100 * (real_correct + replay_correct) / (real_total + replay_total)
+                    else:
+                        train_acc = 100 * real_correct / real_total
 
                     # Update running parameter importance estimates in W
                     if self.si:
@@ -256,26 +310,26 @@ class DCNN(object):
 
                         # visdom
                         if self.visdom:
-                            self.plotter.plot(var_name='loss',
-                                              split_name='train',
-                                              title_name=self.date + ' Current task Loss' + ' lamb{}'.format(self.lamb),
-                                              x=self.global_iter,
-                                              y=train_loss.item())
-                            self.plotter.plot(var_name='loss',
-                                              split_name='test',
-                                              title_name=self.date + ' Current task Loss' + ' lamb{}'.format(self.lamb),
-                                              x=self.global_iter,
-                                              y=test_loss.item())
-                            self.plotter.plot(var_name='acc.',
-                                              split_name='train',
-                                              title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(self.lamb),
-                                              x=self.global_iter,
-                                              y=train_acc)
-                            self.plotter.plot(var_name='acc.',
-                                              split_name='test',
-                                              title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(self.lamb),
-                                              x=self.global_iter,
-                                              y=test_acc)
+                            self.line_plotter.plot(var_name='loss',
+                                                   split_name='train',
+                                                   title_name=self.date + ' Current task Loss' + ' lamb{}'.format(self.lamb),
+                                                   x=self.global_iter,
+                                                   y=train_loss.item())
+                            self.line_plotter.plot(var_name='loss',
+                                                   split_name='test',
+                                                   title_name=self.date + ' Current task Loss' + ' lamb{}'.format(self.lamb),
+                                                   x=self.global_iter,
+                                                   y=test_loss.item())
+                            self.line_plotter.plot(var_name='acc.',
+                                                   split_name='train',
+                                                   title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(self.lamb),
+                                                   x=self.global_iter,
+                                                   y=train_acc)
+                            self.line_plotter.plot(var_name='acc.',
+                                                   split_name='test',
+                                                   title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(self.lamb),
+                                                   x=self.global_iter,
+                                                   y=test_acc)
 
                             task_loss_sum = 0
                             task_acc_sum = 0
@@ -286,29 +340,29 @@ class DCNN(object):
 
                                 task_loss_sum += eval_loss
                                 task_acc_sum += eval_acc
-                                self.plotter.plot(var_name='task acc.',
-                                                  split_name='task {}'.format(old_task_idx+1),
-                                                  title_name=self.date + ' Task Accuracy' + ' lamb{}'.format(self.lamb),
-                                                  x=self.global_iter,
-                                                  y=eval_acc)
+                                self.line_plotter.plot(var_name='task acc.',
+                                                       split_name='task {}'.format(old_task_idx+1),
+                                                       title_name=self.date + ' Task Accuracy' + ' lamb{}'.format(self.lamb),
+                                                       x=self.global_iter,
+                                                       y=eval_acc)
 
-                                self.plotter.plot(var_name='task loss',
-                                                  split_name='task {}'.format(old_task_idx+1),
-                                                  title_name=self.date + ' Task Loss' + ' lamb{}'.format(self.lamb),
-                                                  x=self.global_iter,
-                                                  y=eval_loss)
+                                self.line_plotter.plot(var_name='task loss',
+                                                       split_name='task {}'.format(old_task_idx+1),
+                                                       title_name=self.date + ' Task Loss' + ' lamb{}'.format(self.lamb),
+                                                       x=self.global_iter,
+                                                       y=eval_loss)
 
-                            self.plotter.plot(var_name='task average acc.',
-                                              split_name='until task {}'.format(self.task_idx+1),
-                                              title_name = self.date + ' Task average acc.' + ' lamb{}'.format(self.lamb),
-                                              x=self.global_iter,
-                                              y=task_acc_sum/(self.task_idx+1))
+                            self.line_plotter.plot(var_name='task average acc.',
+                                                   split_name='until task {}'.format(self.task_idx+1),
+                                                   title_name = self.date + ' Task average acc.' + ' lamb{}'.format(self.lamb),
+                                                   x=self.global_iter,
+                                                   y=task_acc_sum/(self.task_idx+1))
 
-                            self.plotter.plot(var_name='task average loss',
-                                              split_name='until task {}'.format(self.task_idx+1),
-                                              title_name = self.date + ' Task average loss' + ' lamb{}'.format(self.lamb),
-                                              x=self.global_iter,
-                                              y=task_loss_sum/(self.task_idx+1))
+                            self.line_plotter.plot(var_name='task average loss',
+                                                   split_name='until task {}'.format(self.task_idx+1),
+                                                   title_name = self.date + ' Task average loss' + ' lamb{}'.format(self.lamb),
+                                                   x=self.global_iter,
+                                                   y=task_loss_sum/(self.task_idx+1))
 
 
 
@@ -323,16 +377,24 @@ class DCNN(object):
                     if self.early_stopping and (min_loss_not_updated >= self.early_stopping_iter):
                         early_stop = True
 
+            # scholar(GAN) create model, train model with real and replayed data
+            if self.gr:
+                self.gan_net = WGAN(self.args, line_plotter=self.line_plotter, images_plotter=self.images_plotter, sample_num=100)
+                if self.task_idx == 0:
+                    self.gan_net.train(data_loader=data_loaders["real"], task_num=self.task_idx)
+                else:
+                    self.gan_net.train(data_loader=merged_loader, task_num=self.task_idx)
+
             for old_task_idx in range(self.task_idx+1):
                 eval_loss, eval_acc = self.evaluate(old_task_idx)
                 print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(old_task_idx + 1, eval_loss, eval_acc))
                 acc_log[self.task_idx, old_task_idx] = eval_acc
 
-                np.savetxt(self.eval_dir + self.log_name + '.txt', acc_log, '%.4f')
-                print('Save at ' + self.eval_dir + self.log_name)
+                np.savetxt(self.eval_file_path, acc_log, '%.4f')
+                print('Save at ' + self.eval_file_path)
 
             if self.ewc:
-                fisher_mat = self.estimate_fisher(data_loader)
+                fisher_mat = self.estimate_fisher(data_loaders["real"])
                 self.store_fisher_n_params(fisher_mat)
                 print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
 
@@ -389,6 +451,14 @@ class DCNN(object):
         # reset model to train mode
         self.set_mode('train')
         return test_loss, eval_acc
+
+    def predict(self, images):
+        self.set_mode('eval')
+        with torch.no_grad():
+            images = cuda(images, self.cuda)
+            outputs = self.C(images)
+            _, predicted = torch.max(outputs, 1)
+            return predicted
 
     def compute_loss(self,outputs, targets):
         loss = self.criterion(outputs, targets)
@@ -561,3 +631,7 @@ class DCNN(object):
         else:
             # EWC-loss is 0 if there are no stored mode and precision yet
             return 0.
+
+
+    def train_new_scholar(self):
+        pass

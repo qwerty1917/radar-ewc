@@ -8,6 +8,7 @@ from utils import str2bool, set_seed
 
 def main(args):
     torch.backends.cudnn.enabled = True
+    # torch.multiprocessing.set_start_method("spawn")
     # torch.backends.cudnn.benchmark = True
 
     seed = args.seed
@@ -29,6 +30,8 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='DCNN')
 
+    # TODO: Hyeongmin park: cont_trainer.py, gan_trainer.py 에 새로 추가된 args 확인하고 여기에 추가
+
     # Mode
     parser.add_argument('--mode', default='train', type=str, help='operation modes: train / eval')
 
@@ -46,7 +49,7 @@ if __name__ == "__main__":
 
     # Network
     parser.add_argument('--cnn_type', default='dcnn', type=str, help='CNN types : dcnn,')
-    parser.add_argument('--load_ckpt', default=True, type=str2bool, help='load previous checkpoint')
+    parser.add_argument('--load_ckpt', default=False, type=str2bool, help='load previous checkpoint')
     parser.add_argument('--ckpt_dir', default='cnn_checkpoint', type=str, help='weight directory')
     parser.add_argument('--image_size', default=32, type=int, help='image size')
     parser.add_argument('--seed', default=1, type=int, help='pytorch seed')
@@ -59,6 +62,7 @@ if __name__ == "__main__":
     parser.add_argument('--trivial_augmentation', default=False, type=str2bool, help='crop & zoom, bright, noise.')
     parser.add_argument('--sliding_augmentation', default=False, type=str2bool, help='random slice augmentation.')
     parser.add_argument('--incremental', default=False, action='store_true', help='apply class incremental learning')
+    parser.add_argument('--darker_threshold', default=0, type=int, help='RetouchDarker threshold')
 
     # Visualization / Log
     parser.add_argument('--env_name', default='main', type=str, help='experiment name')
@@ -86,6 +90,20 @@ if __name__ == "__main__":
 
     # l2
     parser.add_argument('--l2', default=False, type=str2bool, help='Apply l2 constraint')
+
+    # Generative replay
+    parser.add_argument('--gr', default=False, type=str2bool, help='Apply Generative replay')
+    parser.add_argument('--replay_r', default=0.5, type=float, help='real sample ratio')
+
+    parser.add_argument('--gan_D_lr', default=1e-4, type=float, help='lr for Discriminator')
+    parser.add_argument('--gan_G_lr', default=1e-4, type=float, help='lr for Generator')
+    parser.add_argument('--gan_d_residual', default=False, type=str2bool, help='GAN D residual connection')
+    parser.add_argument('--gan_g_residual', default=False, type=str2bool, help='GAN G residual connection')
+    parser.add_argument('--gan_d_iters', default=5, type=int, help='update count of D while update G once')
+    parser.add_argument('--gan_g_iters', default=10000, type=int, help='total G update count')
+    parser.add_argument('--gan_gp_lambda', default=10, type=float, help='WGAN-GP gradient penalty lambda')
+    parser.add_argument('--gan_sample_num', default=100, type=int, help='GAN sample from visdom number')
+    parser.add_argument('--gan_multi_gpu', default=False, type=str2bool, help='GAN multi GPU')
 
     args = parser.parse_args()
 

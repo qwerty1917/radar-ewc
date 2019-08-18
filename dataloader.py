@@ -12,7 +12,6 @@ from os.path import join
 from utils import list_dir, set_seed
 
 def return_data(args):
-    # TODO: cnn_datasets return_data
     # train_dset_dir = args.train_dset_dir
     # test_dset_dir = args.test_dset_dir
 
@@ -23,10 +22,11 @@ def return_data(args):
     num_workers = args.num_workers
     image_size = args.image_size
     time_window = args.time_window
+    darker_threshold = args.darker_threshold
     trivial_augmentation = bool(args.trivial_augmentation)
     sliding_augmentation = bool(args.sliding_augmentation)
 
-    transform_list = [transforms.Resize((image_size, image_size))]
+    transform_list = [transforms.Resize((image_size, image_size)), RetouchDarker(darker_threshold)]
 
     if args.channel == 1:
         transform_list.append(transforms.Grayscale(num_output_channels=1))
@@ -122,6 +122,7 @@ def return_data(args):
 
     if args.continual:
         for i in range(num_tasks):
+            # data loader가 cnn model 학습 이전에 이미 생성완료되어 선언되므로 여기서 replay를 하는건 불가능.
 
             train_loader = DataLoader(train_imagefolders[i], batch_size=train_batch_size,
                                       shuffle=True, num_workers=num_workers,
@@ -147,7 +148,7 @@ def return_data(args):
         data_loader['train'] = train_loader
         data_loader['test'] = test_loader
 
-    return data_loader, num_tasks
+    return data_loader, num_tasks, transform
 
 
 class TimeWindow(object):
@@ -244,3 +245,35 @@ class RandomNoise(object):
 
     def __repr__(self):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+
+
+class RetouchDarker(object):
+    """Cutout pixels that those of value is under threshold as 0.
+    Args:
+        threshold (int): cutout threshold value. Shoud be int between 0~255.
+    Returns:
+        PIL Image: Retouched images.
+    """
+
+    def __init__(self, threshold: int=10):
+        self.threshold = threshold
+
+    def __call__(self, img):
+        """
+        Args:
+            img (PIL Image): Image retouch
+        Returns:
+            PIL Image: Retouched images.
+        """
+        np_img = np.array(img)
+        retouched = np_img.copy()
+        dark_idx = retouched < self.threshold
+        retouched[dark_idx] = 0
+        # Convert numpy array to PUL image.
+        retouched = PIL.Image.fromarray(retouched.astype('uint8'))
+        return retouched
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(threshold={0})'.format(self.threshold)
+
+

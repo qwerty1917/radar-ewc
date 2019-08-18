@@ -5,6 +5,7 @@ from pathlib import Path
 
 import torch
 from torch import nn
+from torch.utils.data import Dataset, DataLoader, ConcatDataset
 from visdom import Visdom
 import numpy as np
 import random
@@ -151,6 +152,9 @@ def make_log_name(args):
     elif args.si:
         log_name += '_si'
         log_name += '_lamb{}_eps{}'.format(args.lamb, args.si_eps)
+    elif args.gr:
+        log_name += '_gr'
+        log_name += '_replay_r{}_gp_lamb{}'.format(args.replay_r, args.gan_gp_lambda)
     else:
         log_name += '_fine'
 
@@ -167,19 +171,20 @@ def check_log_dir(log_dir):
             print("Failed to create directory!!")
 
 
-class VisdomLinePlotter(object):
+class VisdomPlotter(object):
     """Plots to Visdom"""
     def __init__(self, env_name: str, port: int):
         self.viz = Visdom(port=port)
         self.env = env_name
-        self.plots = {}
+        self.line_plots = {}
+        self.image_frames = {}
 
     def plot(self, var_name, split_name, title_name, x, y):
-        if var_name not in self.plots:
-            self.plots[var_name] = self.viz.line(X=np.array([x]),
-                                                 Y=np.array([y]),
-                                                 env=self.env,
-                                                 opts=dict(
+        if var_name not in self.line_plots:
+            self.line_plots[var_name] = self.viz.line(X=np.array([x]),
+                                                      Y=np.array([y]),
+                                                      env=self.env,
+                                                      opts=dict(
                                                      legend=[split_name],
                                                      title=title_name,
                                                      xlabel='Iteration',
@@ -189,9 +194,32 @@ class VisdomLinePlotter(object):
             self.viz.line(X=np.array([x]),
                           Y=np.array([y]),
                           env=self.env,
-                          win=self.plots[var_name],
+                          win=self.line_plots[var_name],
                           name=split_name,
                           update='append')
+
+    def draw(self, caption, images):
+        if caption not in self.image_frames:
+            self.image_frames[caption] = self.viz.images(images, nrow=10, padding=2, env=self.env, opts={"caption": caption, "title": caption})
+
+        else:
+            self.viz.images(images, nrow=10, padding=2, env=self.env, opts={"caption": caption, "title": caption}, win=self.image_frames[caption])
+
+
+class VisdomImagesPlotter(object):
+    """Show images to Visdom"""
+    def __init__(self, env_name: str, port: int):
+        self.viz = Visdom(port=port)
+        self.env = env_name
+        self.frames = {}
+
+    def draw(self, caption, images):
+        if caption not in self.frames:
+            self.frames[caption] = self.viz.images(images, nrow=10, padding=2, opts={"caption": caption})
+
+        else:
+            self.viz.images(images, nrow=10, padding=2, opts={"caption": caption}, win=self.frames[caption])
+
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -200,3 +228,48 @@ def set_seed(seed):
     random.seed(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
+
+
+class ScholarDataset(Dataset):
+    def __init__(self, image_x, label_y, transform=None):
+        self.image_x = image_x
+        self.label_y = label_y
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.image_x)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        sample = (self.image_x[idx], self.label_y[idx])
+        return sample
+
+
+def make_combined_dataloader(real_data_loader: DataLoader, replay_x, replay_y, transform):
+    task_dataset = real_data_loader.dataset
+    replay_dataset = ScholarDataset(replay_x.cpu().detach(), replay_y.cpu().numpy(), transform=transform)
+    merged_dataset = ConcatDataset([task_dataset, replay_dataset])
+    merged_dataloader = DataLoader(merged_dataset,
+                                   batch_size=real_data_loader.batch_size,
+                                   shuffle=True,
+                                   num_workers=real_data_loader.num_workers,
+                                   pin_memory=True,
+                                   drop_last=True,
+                                   worker_init_fn=real_data_loader.worker_init_fn)
+
+    return merged_dataloader
+
+
+def make_replay_dataloader(real_data_loader: DataLoader, replay_x, replay_y, transform):
+    replay_dataset = ScholarDataset(replay_x.cpu().detach(), replay_y.cpu().numpy(), transform=transform)
+    replay_dataloader = DataLoader(replay_dataset,
+                                   batch_size=real_data_loader.batch_size,
+                                   shuffle=True,
+                                   num_workers=real_data_loader.num_workers,
+                                   pin_memory=True,
+                                   drop_last=True,
+                                   worker_init_fn=real_data_loader.worker_init_fn)
+
+    return replay_dataloader
