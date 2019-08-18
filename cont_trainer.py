@@ -8,7 +8,7 @@ import shutil
 
 import numpy as np
 from dataloader import return_data
-from model import Dcnn
+from models.cnn import Dcnn
 from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter, set_seed
 
 
