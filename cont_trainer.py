@@ -543,6 +543,8 @@ class DCNN(object):
                 self.C.register_buffer('{}_prev_task{}'.format(n, self.task_count + 1),
                                      p.detach().clone())
 
+        self.task_count = self.task_count + 1
+
     def l2_loss(self):
         '''Calculate l2-loss.'''
         if self.task_count > 0:
