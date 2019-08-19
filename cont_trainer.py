@@ -12,7 +12,6 @@ from models.cnn import Dcnn
 from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter, set_seed
 
 
-
 ## Weights init function, DCGAN use 0.02 std
 def weights_init(m):
     classname = m.__class__.__name__
@@ -531,7 +530,7 @@ class DCNN(object):
             # SI-loss is 0 if there is no stored omega yet
             return 0.
 
-    # ----------------- l2-specifc functions -----------------#
+    # ----------------- l2-specific functions -----------------#
 
     def store_params(self):
 
