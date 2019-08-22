@@ -86,6 +86,7 @@ class DCNN(object):
         self.online = args.online
         self.gamma = args.gamma
         self.task_count = 0
+        self.normalize = args.fisher_normalize
 
         self.hat_ewc = args.hat_ewc
 
@@ -455,6 +456,19 @@ class DCNN(object):
         return est_fisher_info
 
     def store_fisher_n_params(self, fisher):
+
+        if args.fisher_normalize:
+            fisher_max = 0.
+            for n, p in self.actor_critic.named_parameters():
+                if p.requires_grad:
+                    n = n.replace('.', '__')
+                    if fisher[n].max() > fisher_max:
+                        fisher_max = fisher[n].max()
+
+            for n, p in self.actor_critic.named_parameters():
+                if p.requires_grad:
+                    n = n.replace('.', '__')
+                    fisher[n] = fisher[n] / fisher_max
 
         # Store new values in the network
         for n, p in self.C.named_parameters():

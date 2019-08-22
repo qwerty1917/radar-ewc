@@ -144,9 +144,14 @@ def make_log_name(args):
 
     if args.ewc:
         log_name += '_ewc'
+        if args.fisher_normalize:
+            log_name += '_normalized'
         log_name += '_lamb{}'.format(args.lamb)
+
     elif args.hat_ewc:
         log_name += '_hatewc'
+        if args.fisher_normalize:
+            log_name += '_normalized'
         log_name += '_lamb{}'.format(args.lamb)
     elif args.l2:
         log_name += '_l2'

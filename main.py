@@ -80,6 +80,7 @@ if __name__ == "__main__":
     parser.add_argument('--hat_ewc', default=False, type=str2bool, help='Apply hat ewc constraint')
     parser.add_argument('--online', default=False, type=str2bool, help='Apply online EWC')
     parser.add_argument('--gamma', default=1.0, type=float, help='online ewc gamma')
+    parser.add_argument('--fisher_normalize', default=False, type=str2bool, help='normalize fisher')
 
     # SI
     parser.add_argument('--si', default=False, type=str2bool, help='Apply si constraint')
