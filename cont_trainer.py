@@ -457,15 +457,15 @@ class DCNN(object):
 
     def store_fisher_n_params(self, fisher):
 
-        if args.fisher_normalize:
+        if self.normalize:
             fisher_max = 0.
-            for n, p in self.actor_critic.named_parameters():
+            for n, p in self.C.named_parameters():
                 if p.requires_grad:
                     n = n.replace('.', '__')
                     if fisher[n].max() > fisher_max:
                         fisher_max = fisher[n].max()
 
-            for n, p in self.actor_critic.named_parameters():
+            for n, p in self.C.named_parameters():
                 if p.requires_grad:
                     n = n.replace('.', '__')
                     fisher[n] = fisher[n] / fisher_max
