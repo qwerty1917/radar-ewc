@@ -91,6 +91,8 @@ class DCNN(object):
         self.gamma = args.gamma
         self.task_count = 0
 
+        self.hat_ewc = args.hat_ewc
+
         # SI
         self.si = args.si
         self.si_eps = args.si_eps
@@ -398,6 +400,11 @@ class DCNN(object):
                 self.store_fisher_n_params(fisher_mat)
                 print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
 
+            elif self.hat_ewc:
+                fisher_mat = self.estimate_fisher(data_loader)
+                self.store_fisher_n_params_hat_ver(fisher_mat)
+                print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
+
             # SI: calculate and update the normalized path integral
             elif self.si:
                 self.update_omega(W, self.si_eps)
@@ -467,6 +474,8 @@ class DCNN(object):
         reg_loss = 0.
         if self.ewc:
             reg_loss = self.ewc_loss()
+        elif self.hat_ewc:
+            reg_loss = self.ewc_loss_hat_ver()
         elif self.si:
             reg_loss = self.surrogate_loss()
         elif self.l2:
@@ -535,6 +544,24 @@ class DCNN(object):
         # If "offline EWC", increase task-count (for "online EWC", set it to 1 to indicate EWC-loss can be calculated)
         self.task_count = 1 if self.online else self.task_count + 1
 
+    def store_fisher_n_params_hat_ver(self, fisher):
+
+        # Store new values in the network
+        for n, p in self.C.named_parameters():
+            if p.requires_grad:
+                n = n.replace('.', '__')
+                # -mode (=MAP parameter estimate)
+                self.C.register_buffer('{}_EWC_prev_task'.format(n), p.detach().clone())
+                # -precision (approximated by diagonal Fisher Information matrix)
+
+                if self.task_idx >0:
+                    existing_values = getattr(self.C, '{}_EWC_estimated_fisher'.format(n))
+                    fisher[n] = (fisher[n] + self.task_idx * existing_values)/(self.task_idx+1)
+
+                self.C.register_buffer('{}_EWC_estimated_fisher'.format(n), fisher[n])
+
+        self.task_count = 1
+
     def ewc_loss(self):
         '''Calculate EWC-loss.'''
         if self.task_count > 0:
@@ -551,6 +578,26 @@ class DCNN(object):
                         fisher = self.gamma * fisher if self.online else fisher
                         # Calculate EWC-loss
                         losses += (fisher * (p - mean).pow(2)).sum()
+            # Sum EWC-loss from all parameters (and from all tasks, if "offline EWC")
+            return losses/2.
+        else:
+            # EWC-loss is 0 if there are no stored mode and precision yet
+            return 0.
+
+    def ewc_loss_hat_ver(self):
+        '''Calculate EWC-loss.'''
+        if self.task_count > 0:
+            losses = 0
+
+            for n, p in self.C.named_parameters():
+                if p.requires_grad:
+                    # Retrieve stored mode (MAP estimate) and precision (Fisher Information matrix)
+                    n = n.replace('.', '__')
+                    mean = getattr(self.C, '{}_EWC_prev_task'.format(n))
+                    fisher = getattr(self.C, '{}_EWC_estimated_fisher'.format(n))
+
+                    # Calculate EWC-loss
+                    losses += (fisher * (p - mean).pow(2)).sum()
             # Sum EWC-loss from all parameters (and from all tasks, if "offline EWC")
             return losses/2.
         else:
@@ -601,7 +648,7 @@ class DCNN(object):
             # SI-loss is 0 if there is no stored omega yet
             return 0.
 
-    # ----------------- l2-specifc functions -----------------#
+    # ----------------- l2-specific functions -----------------#
 
     def store_params(self):
 
@@ -612,6 +659,8 @@ class DCNN(object):
                 # -mode (=MAP parameter estimate)
                 self.C.register_buffer('{}_prev_task{}'.format(n, self.task_count + 1),
                                      p.detach().clone())
+
+        self.task_count = self.task_count + 1
 
     def l2_loss(self):
         '''Calculate l2-loss.'''
