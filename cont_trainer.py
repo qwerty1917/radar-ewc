@@ -72,6 +72,8 @@ class DCNN(object):
         self.load_ckpt = args.load_ckpt
         self.input_channel = args.channel
         self.image_size = args.image_size
+        self.multi = args.multi
+        self.num_tasks = args.num_tasks
         self.model_init()
 
         # Dataset
@@ -102,7 +104,7 @@ class DCNN(object):
 
     def model_init(self):
         # TODO: CNN model_init
-        self.C = Dcnn(self.input_channel)
+        self.C = Dcnn(self.input_channel, self.multi, self.num_tasks)
 
         self.C.apply(weights_init)
 
@@ -178,6 +180,7 @@ class DCNN(object):
             print("=> no checkpoint found at '{}'".format(file_path))
 
     def train(self):
+        # TODO : multi_head indexing forward & si no reg correction
         self.set_mode('train')
         min_loss = None
         min_loss_not_updated = 0
@@ -221,7 +224,10 @@ class DCNN(object):
 
                     self.global_iter += 1
                     # Forward
-                    outputs = self.C(images)
+                    if self.multi:
+                        outputs = self.C(images, self.task_idx)
+                    else:
+                        outputs = self.C(images)
                     train_loss = self.compute_loss(outputs, labels)
 
                     # Backward
@@ -572,7 +578,6 @@ class DCNN(object):
                 # Store these new values in the model
                 self.C.register_buffer('{}_SI_prev_task'.format(n), p_current)
                 self.C.register_buffer('{}_SI_omega'.format(n), omega_new)
-
 
     def surrogate_loss(self):
         '''Calculate SI's surrogate loss.'''
