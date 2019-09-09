@@ -81,15 +81,14 @@ class DCNN(object):
 
         # Continual Learning
         self.continual = args.continual
+        self.lamb = args.lamb
 
         # EWC
         self.ewc = args.ewc
-        self.lamb = args.lamb
         self.online = args.online
         self.gamma = args.gamma
         self.task_count = 0
         self.normalize = args.fisher_normalize
-
         self.hat_ewc = args.hat_ewc
 
         # SI
@@ -578,6 +577,8 @@ class DCNN(object):
                 # Store these new values in the model
                 self.C.register_buffer('{}_SI_prev_task'.format(n), p_current)
                 self.C.register_buffer('{}_SI_omega'.format(n), omega_new)
+
+        self.task_count = 1
 
     def surrogate_loss(self):
         '''Calculate SI's surrogate loss.'''
