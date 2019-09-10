@@ -179,7 +179,6 @@ class DCNN(object):
             print("=> no checkpoint found at '{}'".format(file_path))
 
     def train(self):
-        # TODO : multi_head indexing forward & si no reg correction
         self.set_mode('train')
         min_loss = None
         min_loss_not_updated = 0
@@ -339,12 +338,12 @@ class DCNN(object):
                 print('Save at ' + self.eval_dir + self.log_name)
 
             if self.ewc:
-                fisher_mat = self.estimate_fisher(data_loader)
+                fisher_mat = self.estimate_fisher(data_loader, self.task_idx)
                 self.store_fisher_n_params(fisher_mat)
                 print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
 
             elif self.hat_ewc:
-                fisher_mat = self.estimate_fisher(data_loader)
+                fisher_mat = self.estimate_fisher(data_loader, self.task_idx)
                 self.store_fisher_n_params_hat_ver(fisher_mat)
                 print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
 
@@ -385,7 +384,11 @@ class DCNN(object):
                 images = cuda(images, self.cuda)
                 labels = cuda(labels, self.cuda)
 
-                outputs = self.C(images)
+                if self.multi:
+                    outputs = self.C(images, task_idx)
+                else:
+                    outputs = self.C(images)
+
                 _, predicted = torch.max(outputs, 1)
                 total = labels.size(0)
                 correct = (predicted == labels).sum().item()
@@ -402,7 +405,7 @@ class DCNN(object):
         self.set_mode('train')
         return test_loss, eval_acc
 
-    def compute_loss(self,outputs, targets):
+    def compute_loss(self, outputs, targets):
         loss = self.criterion(outputs, targets)
 
         # Regularization for all previous tasks
@@ -420,7 +423,7 @@ class DCNN(object):
 
     # ----------------- EWC-specifc functions -----------------#
 
-    def estimate_fisher(self, data_loader):
+    def estimate_fisher(self, data_loader, task_idx):
         '''After completing training on a task, estimate diagonal of Fisher Information matrix.
         [data_loader]:          <DataLoadert> to be used to estimate FI-matrix'''
 
@@ -438,7 +441,11 @@ class DCNN(object):
             labels = cuda(labels, self.cuda)
 
             # Forward
-            outputs = self.C(images)
+            if self.multi:
+                outputs = self.C(images, task_idx)
+            else:
+                outputs = self.C(images)
+
             train_loss = self.compute_loss(outputs, labels)
             self.C_optim.zero_grad()
             train_loss.backward()
