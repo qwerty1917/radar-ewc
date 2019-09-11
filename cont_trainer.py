@@ -610,6 +610,8 @@ class DCNN(object):
 
         # Store new values in the network
         for n, p in self.C.named_parameters():
+            if n.startswith('last'):
+                break
             if p.requires_grad:
                 n = n.replace('.', '__')
                 # -mode (=MAP parameter estimate)
@@ -625,9 +627,8 @@ class DCNN(object):
             # If "offline EWC", loop over all previous tasks (if "online EWC", [EWC_task_count]=1 so only 1 iteration)
             for task in range(1, self.task_count + 1):
                 for n, p in self.C.named_parameters():
-                    print(n)
                     if n.startswith('last'):
-                        print('True')
+                        break
                     if p.requires_grad:
                         # Retrieve stored mode (MAP estimate) and precision (Fisher Information matrix)
                         n = n.replace('.', '__')
