@@ -632,7 +632,7 @@ class DCNN(object):
                         mean = getattr(self.C, '{}_prev_task{}'.format(n, task))
                         # Calculate EWC-loss
                         losses += (p - mean).pow(2).sum()
-                    exit()
+                exit()
             # Sum EWC-loss from all parameters (and from all tasks, if "offline EWC")
             return losses/2.
         else:
