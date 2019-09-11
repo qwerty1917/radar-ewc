@@ -141,7 +141,8 @@ def make_log_name(args):
 
     log_name += '_seed{}'.format(args.seed)
     log_name += '_window{}'.format(args.time_window)
-
+    if args.multi:
+        log_name += '_multi'
     if args.ewc:
         log_name += '_ewc'
         if args.online:
