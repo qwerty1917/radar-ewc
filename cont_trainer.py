@@ -626,13 +626,14 @@ class DCNN(object):
             for task in range(1, self.task_count + 1):
                 for n, p in self.C.named_parameters():
                     print(n)
+                    if n.startswith('last'):
+                        print('True')
                     if p.requires_grad:
                         # Retrieve stored mode (MAP estimate) and precision (Fisher Information matrix)
                         n = n.replace('.', '__')
                         mean = getattr(self.C, '{}_prev_task{}'.format(n, task))
                         # Calculate EWC-loss
                         losses += (p - mean).pow(2).sum()
-                exit()
             # Sum EWC-loss from all parameters (and from all tasks, if "offline EWC")
             return losses/2.
         else:
