@@ -77,6 +77,7 @@ if __name__ == "__main__":
 
     # Continual Learning
     parser.add_argument('--continual', default=True, type=str2bool, help='continual learning')
+    parser.add_argument('--task_upper_bound', default=False, type=str2bool, help='task trained with formal task data. must set with continual.')
     parser.add_argument('--lamb', default=0., type=float, help='regularization strength')
 
     # EWC
