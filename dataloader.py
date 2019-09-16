@@ -104,21 +104,38 @@ def return_data(args):
     else:
         root = './data/per_subject/'
 
-    num_tasks = len(list_dir(root))
+    tasks = list_dir(root)
+    num_tasks = len(tasks)
 
     train_imagefolders = []
     test_imagefolders = []
-    for i in range(num_tasks):
 
-        data_loader['task{}'.format(i)] = {}
+    if args.subject_shuffle:
+        random.shuffle(tasks)
+        for i, task in enumerate(tasks):
 
-        target_subject = join(root, 'Subject{}'.format(i+1))
+            data_loader['task{}'.format(i)] = {}
 
-        train_data = ImageFolder(root=target_subject + '/train', transform=transform)
-        test_data = ImageFolder(root=target_subject + '/test', transform=transform)
+            target_subject = join(root, task)
 
-        train_imagefolders.append(train_data)
-        test_imagefolders.append(test_data)
+            train_data = ImageFolder(root=target_subject + '/train', transform=transform)
+            test_data = ImageFolder(root=target_subject + '/test', transform=transform)
+
+            train_imagefolders.append(train_data)
+            test_imagefolders.append(test_data)
+
+    else:
+        for i in range(num_tasks):
+
+            data_loader['task{}'.format(i)] = {}
+
+            target_subject = join(root, 'Subject{}'.format(i+1))
+
+            train_data = ImageFolder(root=target_subject + '/train', transform=transform)
+            test_data = ImageFolder(root=target_subject + '/test', transform=transform)
+
+            train_imagefolders.append(train_data)
+            test_imagefolders.append(test_data)
 
     if args.continual:
         for i in range(num_tasks):
