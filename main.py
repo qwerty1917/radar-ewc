@@ -11,7 +11,10 @@ def main(args):
     # torch.backends.cudnn.benchmark = True
 
     seed = args.seed
-    set_seed(seed)
+    if args.subject_shuffle:
+        set_seed(0)
+    else:
+        set_seed(seed)
 
     np.set_printoptions(precision=4)
     torch.set_printoptions(precision=4)

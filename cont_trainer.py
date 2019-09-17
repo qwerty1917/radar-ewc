@@ -33,7 +33,10 @@ class DCNN(object):
     def __init__(self, args):
         self.args = args
 
-        set_seed(args.seed)
+        if args.subject_shuffle:
+            set_seed(0)
+        else:
+            set_seed(args.seed)
 
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
