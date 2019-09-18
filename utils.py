@@ -139,6 +139,9 @@ def make_log_name(args):
     else:
         log_name += '_subject'
 
+    if args.subject_shuffle:
+        log_name += '_shuffle'
+
     log_name += '_seed{}'.format(args.seed)
     log_name += '_window{}'.format(args.time_window)
     if args.multi:
