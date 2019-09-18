@@ -116,6 +116,7 @@ def return_data(args):
 
     if args.subject_shuffle:
         random.shuffle(tasks)
+        print(tasks)
         for i, task in enumerate(tasks):
 
             data_loader['task{}'.format(i)] = {}
