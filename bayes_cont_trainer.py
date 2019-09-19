@@ -102,7 +102,8 @@ class baye_DCNN(object):
 
     def model_init(self):
         self.C = Dcnn(self.input_channel, self.ratio, self.multi, self.num_tasks)
-        self.C_old = deepcopy(self.C)
+        self.C_old = Dcnn(self.input_channel, self.ratio, self.multi, self.num_tasks)
+        self.C_old.load_state_dict(self.C.state_dict())
 
         self.C.apply(weights_init)
 
@@ -318,7 +319,8 @@ class baye_DCNN(object):
                 np.savetxt(self.eval_dir + self.log_name + '.txt', acc_log, '%.4f')
                 print('Save at ' + self.eval_dir + self.log_name)
 
-            self.C_old = deepcopy(self.C)
+            # self.C_old = deepcopy(self.C)
+            self.C_old.load_state_dict(self.C.state_dict())
             self.saved = 1
             print('Old model saved successfully!')
 
