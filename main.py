@@ -3,6 +3,7 @@ import numpy as np
 import argparse
 
 from cont_trainer import DCNN
+from bayes_cont_trainer import baye_DCNN
 
 from utils import str2bool, set_seed
 
@@ -20,7 +21,10 @@ def main(args):
     torch.set_printoptions(precision=4)
 
     if args.cnn_type == 'dcnn':
-        net = DCNN(args)
+        if args.ucl:
+            net = baye_DCNN(args)
+        else:
+            net = DCNN(args)
     else:
         raise ValueError('cnn_type should be one of DCNN,')
 
@@ -94,6 +98,12 @@ if __name__ == "__main__":
 
     # l2
     parser.add_argument('--l2', default=False, type=str2bool, help='Apply l2 constraint')
+
+    # UCL
+    parser.add_argument('--ucl', default=False, type=str2bool, help='Apply ucl constraint')
+    parser.add_argumnet('--alpha', default=0.01, type=float, help='(default=%(default)f)')
+    parser.add_argumnet('--ratio', default=0.5, type=float, help='(default=%(default)f)')
+    parser.add_argument('--rho', type = float, default=-2.783, help='initial rho')
 
     args = parser.parse_args()
 

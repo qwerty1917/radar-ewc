@@ -215,3 +215,8 @@ def set_seed(seed):
     random.seed(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
+
+def freeze_model(model):
+    for param in model.parameters():
+        param.requires_grad = False
+    return
