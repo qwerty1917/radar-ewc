@@ -86,13 +86,8 @@ class baye_DCNN(object):
 
         self.param_name = []
 
-        for (name, p) in self.model.named_parameters():
+        for (name, p) in self.C.named_parameters():
             self.param_name.append(name)
-
-        if len(args.parameter) >= 1:
-            params = args.parameter.split(',')
-            print('Setting parameters to', params)
-            self.lamb = float(params[0])
 
         # Network
         self.cnn_type = args.cnn_type

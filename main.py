@@ -105,7 +105,6 @@ if __name__ == "__main__":
     parser.add_argument('--ratio', default=0.5, type=float, help='(default=%(default)f)')
     parser.add_argument('--rho', type=float, default=-2.783, help='initial rho')
     parser.add_argument('--lr_rho', type=float, default=0.001, help='initial lr rho for ucl')
-
     args = parser.parse_args()
 
     main(args)
