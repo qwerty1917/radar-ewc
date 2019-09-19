@@ -123,11 +123,16 @@ def return_data(args):
     if args.continual:
         for i in range(num_tasks):
             # data loader가 cnn model 학습 이전에 이미 생성완료되어 선언되므로 여기서 replay를 하는건 불가능.
-
-            train_loader = DataLoader(train_imagefolders[i], batch_size=train_batch_size,
+            if args.task_upper_bound:
+                train_dataset = ConcatDataset(train_imagefolders[:i + 1])
+                test_dataset = ConcatDataset(test_imagefolders[:i + 1])
+            else:
+                train_dataset = train_imagefolders[i]
+                test_dataset = test_imagefolders[i]
+            train_loader = DataLoader(train_dataset, batch_size=train_batch_size,
                                       shuffle=True, num_workers=num_workers,
                                       pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
-            test_loader = DataLoader(test_imagefolders[i], batch_size=test_batch_size,
+            test_loader = DataLoader(test_dataset, batch_size=test_batch_size,
                                      shuffle=True, num_workers=num_workers,
                                      pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
 
