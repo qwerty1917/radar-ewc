@@ -97,9 +97,6 @@ class baye_DCNN(object):
         # Dataset
         self.data_loader, self.num_tasks = return_data(args)
 
-        if self.ewc and not self.continual:
-            raise ValueError("Cannot set EWC with no continual setting")
-
     def model_init(self):
         self.C = Dcnn(self.input_channel, self.ratio, self.multi, self.num_tasks)
         self.C_old = Dcnn(self.input_channel, self.ratio, self.multi, self.num_tasks)
