@@ -22,6 +22,7 @@ def main(args):
 
     if args.cnn_type == 'dcnn':
         if args.ucl:
+            torch.set_default_tensor_type('torch.cuda.FloatTensor')
             net = baye_DCNN(args)
         else:
             net = DCNN(args)
