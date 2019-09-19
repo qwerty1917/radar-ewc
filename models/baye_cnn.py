@@ -1,5 +1,5 @@
 import torch.nn as nn
-from bayes_layer import BayesianConv2D, BayesianLinear
+from models.bayes_layer import BayesianConv2D, BayesianLinear
 
 class Dcnn(nn.Module):
     def __init__(self, input_channel, ratio, multi=False, num_tasks=12):
