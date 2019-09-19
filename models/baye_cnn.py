@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from models.bayes_layer import BayesianConv2D, BayesianLinear
 
-
+"""
 class Dcnn(nn.Module):
     def __init__(self, input_channel, ratio, multi=False, num_tasks=12):
         super(Dcnn, self).__init__()
@@ -55,8 +55,8 @@ class Dcnn(nn.Module):
             x = self.last(x)
 
         return x
-
 """
+
 class Dcnn(nn.Module):
     def __init__(self, input_channel, ratio, multi=False, num_tasks=12):
         super(Dcnn, self).__init__()
@@ -118,4 +118,3 @@ class Dcnn(nn.Module):
             x = self.last(x)
 
         return x
-"""

@@ -102,6 +102,7 @@ class baye_DCNN(object):
 
     def model_init(self):
         self.C = Dcnn(self.input_channel, self.ratio, self.multi, self.num_tasks)
+        self.C_old = deepcopy(self.C)
 
         self.C.apply(weights_init)
 
@@ -112,17 +113,18 @@ class baye_DCNN(object):
 
         if self.cuda:
             self.C = cuda(self.C, self.cuda)
+            self.C_old = cuda(self.C_old, self.cuda)
 
         if self.multi_gpu:
             self.C = nn.DataParallel(self.C).cuda()
+            self.C_old = nn.DataParallel(self.C_old).cuda()
+
 
         if not self.ckpt_dir.exists():
             self.ckpt_dir.mkdir(parents=True, exist_ok=True)
 
         if self.load_ckpt:
             self.load_checkpoint()
-
-        self.C_old = deepcopy(self.C)
 
     def visualization_init(self):
         if self.reset_env:
