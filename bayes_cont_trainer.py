@@ -83,11 +83,7 @@ class baye_DCNN(object):
         self.alpha = args.alpha
         self.saved = 0
         self.ratio = args.ratio
-
         self.param_name = []
-
-        for (name, p) in self.C.named_parameters():
-            self.param_name.append(name)
 
         # Network
         self.cnn_type = args.cnn_type
@@ -108,6 +104,9 @@ class baye_DCNN(object):
         self.C = Dcnn(self.input_channel, self.ratio, self.multi, self.num_tasks)
 
         self.C.apply(weights_init)
+
+        for (name, p) in self.C.named_parameters():
+            self.param_name.append(name)
 
         self.C_optim = Adam(self.C.parameters(), lr=self.lr, lr_rho=self.lr_rho, param_name=self.param_name)
 
