@@ -84,6 +84,16 @@ class baye_DCNN(object):
         self.saved = 0
         self.ratio = args.ratio
 
+        self.param_name = []
+
+        for (name, p) in self.model.named_parameters():
+            self.param_name.append(name)
+
+        if len(args.parameter) >= 1:
+            params = args.parameter.split(',')
+            print('Setting parameters to', params)
+            self.lamb = float(params[0])
+
         # Network
         self.cnn_type = args.cnn_type
         self.load_ckpt = args.load_ckpt
@@ -95,16 +105,6 @@ class baye_DCNN(object):
 
         # Dataset
         self.data_loader, self.num_tasks = return_data(args)
-
-        self.param_name = []
-
-        for (name, p) in self.model.named_parameters():
-            self.param_name.append(name)
-
-        if len(args.parameter) >= 1:
-            params = args.parameter.split(',')
-            print('Setting parameters to', params)
-            self.lamb = float(params[0])
 
         if self.ewc and not self.continual:
             raise ValueError("Cannot set EWC with no continual setting")
