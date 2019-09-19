@@ -2,6 +2,7 @@ from pathlib import Path
 
 import PIL
 import numpy as np
+from PIL import Image
 from torch.utils.data import DataLoader
 from torch.utils.data import ConcatDataset
 from torchvision import transforms
@@ -11,15 +12,10 @@ import os
 from os.path import join
 from utils import list_dir, set_seed
 
-def return_data(args):
-    # train_dset_dir = args.train_dset_dir
-    # test_dset_dir = args.test_dset_dir
 
+def make_transform(args):
     set_seed(args.seed)
 
-    train_batch_size = args.train_batch_size
-    test_batch_size = args.test_batch_size
-    num_workers = args.num_workers
     image_size = args.image_size
     time_window = args.time_window
     darker_threshold = args.darker_threshold
@@ -50,50 +46,22 @@ def return_data(args):
         transform_list.append(transforms.Normalize([0.5], [0.5]))
     else:
         transform_list.append(transforms.Normalize([0.5] * args.channel, [0.5] * args.channel))
-    print(transform_list)
     transform = transforms.Compose(transform_list)
 
-    # if args.channel == 1:
-    #     transform = transforms.Compose([
-    #         transforms.Resize((image_size, image_size)),
-    #         transforms.Grayscale(num_output_channels=1),
-    #         TimeWindow(time_window=time_window),
-    #         transforms.ToTensor(),
-    #         transforms.Normalize([0.5], [0.5]),
-    #     ])
-    # else:
-    #     transform = transforms.Compose([
-    #         transforms.Resize((image_size, image_size)),
-    #         TimeWindow(time_window=time_window),
-    #         transforms.ToTensor(),
-    #         transforms.Normalize([0.5] * args.channel, [0.5] * args.channel),
-    #     ])
-    """
-    train_root = Path(train_dset_dir)
-    test_root = Path(test_dset_dir)
-    train_kwargs = {'root': train_root, 'transform': transform}
-    test_kwargs = {'root': test_root, 'transform': transform}
-    dset = ImageFolder
+    return transform
 
-    train_data = dset(**train_kwargs)
-    test_data = dset(**test_kwargs)
-    train_loader = DataLoader(train_data,
-                              batch_size=batch_size,
-                              shuffle=True,
-                              num_workers=num_workers,
-                              pin_memory=True,
-                              drop_last=True)
-    test_loader = DataLoader(test_data,
-                             batch_size=test_batch_size,
-                             shuffle=True,
-                             num_workers=num_workers,
-                             pin_memory=True,
-                             drop_last=True)
 
-    data_loader = dict()
-    data_loader['train'] = train_loader
-    data_loader['test'] = test_loader
-    """
+def return_data(args, class_range=None):
+    # train_dset_dir = args.train_dset_dir
+    # test_dset_dir = args.test_dset_dir
+
+    set_seed(args.seed)
+
+    train_batch_size = args.train_batch_size
+    test_batch_size = args.test_batch_size
+    num_workers = args.num_workers
+
+    transform = make_transform(args)
 
     def _init_fn(worker_id):
         np.random.seed(int(args.seed))
@@ -106,6 +74,9 @@ def return_data(args):
 
     num_tasks = len(list_dir(root))
 
+    if class_range is None:
+        class_range = range(7)
+
     train_imagefolders = []
     test_imagefolders = []
     for i in range(num_tasks):
@@ -114,8 +85,8 @@ def return_data(args):
 
         target_subject = join(root, 'Subject{}'.format(i+1))
 
-        train_data = ImageFolder(root=target_subject + '/train', transform=transform)
-        test_data = ImageFolder(root=target_subject + '/test', transform=transform)
+        train_data = IcarlDataset(root=target_subject + '/train', classes=class_range, transform=transform)
+        test_data = IcarlDataset(root=target_subject + '/test', classes=range(list(class_range)[-1]+1), transform=transform)
 
         train_imagefolders.append(train_data)
         test_imagefolders.append(test_data)
@@ -140,8 +111,13 @@ def return_data(args):
             data_loader['task{}'.format(i)]['test'] = test_loader
     else:
         num_tasks = 1
-        train_data_concat = ConcatDataset(train_imagefolders)
-        test_data_concat = ConcatDataset(test_imagefolders)
+        train_data_concat = train_imagefolders[0]
+        for i in range(1, len(train_imagefolders)):
+            train_data_concat.append(train_imagefolders[i].samples, train_imagefolders[i].targets)
+
+        test_data_concat = test_imagefolders[0]
+        for i in range(1, len(test_imagefolders)):
+            test_data_concat.append(test_imagefolders[i].samples, test_imagefolders[i].targets)
 
         train_loader = DataLoader(train_data_concat, batch_size=train_batch_size,
                                   shuffle=True, num_workers=num_workers,
@@ -282,3 +258,53 @@ class RetouchDarker(object):
         return self.__class__.__name__ + '(threshold={0})'.format(self.threshold)
 
 
+class IcarlDataset(ImageFolder):
+    def __init__(self, root,
+                 classes=range(7),
+                 transform=None,
+                 target_transform=None):
+        super(IcarlDataset, self).__init__(root,
+                                           transform=transform,
+                                           target_transform=target_transform)
+
+        task_data = []
+        task_labels = []
+
+        for i in range(self.__len__()):
+            if self.targets[i] in classes:
+                task_data.append(self.samples[i])
+                task_labels.append(self.targets[i])
+
+        self.samples = np.array(task_data)
+        self.targets = task_labels
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (sample, target) where target is class_index of the target class.
+        """
+        path, target = self.samples[index]
+        sample = self.loader(path)
+        if self.transform is not None:
+            sample = self.transform(sample)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+
+        return index, sample, int(target), path
+
+    def get_image_class(self, label):
+        samples = self.samples[np.array(self.targets) == label]
+        targets = [label] * len(samples)
+        single_class_dataset = ImageFolder(root='',
+                                           transform=self.transform,
+                                           target_transform=self.target_transform)
+        single_class_dataset.samples = samples
+        single_class_dataset.targets = targets
+        return single_class_dataset
+
+    def append(self, images, labels):
+        self.samples = np.concatenate((self.samples, images), axis=0)
+        self.targets = self.targets + labels

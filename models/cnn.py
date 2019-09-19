@@ -2,7 +2,7 @@ import torch.nn as nn
 
 
 class Dcnn(nn.Module):
-    def __init__(self, input_channel):
+    def __init__(self, input_channel, incremental=False, num_classes=2):
         super(Dcnn, self).__init__()
 
         self.conv_layers = nn.Sequential(
@@ -41,19 +41,14 @@ class Dcnn(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.4),
 
-            # State (128)
-            nn.Linear(128, 7),
         )
 
-        # self.output = nn.Sequential(
-        #     # State (7)
-        #     nn.Softmax()
-        # )
+        self.output = nn.Linear(128, 7)
 
     def forward(self, x):
         x = self.conv_layers(x)
         x = x.reshape(x.size(0), -1)
         x = self.fc_layers(x)
-        # x = self.output(x)
+        x = self.output(x)
 
         return x
