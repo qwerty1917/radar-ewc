@@ -74,6 +74,16 @@ class baye_DCNN(object):
         self.summary_dir = Path("./tensorboard_logs/").joinpath(self.env_name)
         self.visualization_init()
 
+        # Continual Learning
+        self.continual = args.continual
+        self.lamb = args.lamb
+
+        # UCL
+        self.beta = args.lamb
+        self.alpha = args.alpha
+        self.saved = 0
+        self.ratio = args.ratio
+
         # Network
         self.cnn_type = args.cnn_type
         self.load_ckpt = args.load_ckpt
@@ -85,16 +95,6 @@ class baye_DCNN(object):
 
         # Dataset
         self.data_loader, self.num_tasks = return_data(args)
-
-        # Continual Learning
-        self.continual = args.continual
-        self.lamb = args.lamb
-
-        # UCL
-        self.beta = args.lamb
-        self.alpha = args.alpha
-        self.saved = 0
-        self.ratio = args.ratio
 
         self.param_name = []
 
