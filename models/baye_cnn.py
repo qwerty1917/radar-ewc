@@ -11,17 +11,20 @@ class Dcnn(nn.Module):
         self.conv1 = BayesianConv2D(in_channels=input_channel, out_channels=16,
                                     kernel_size=7, stride=1, padding=3, ratio=ratio)
         self.bn1 = nn.BatchNorm2d(num_features=16)
+        self.maxpool1 = nn.MaxPool2d(2)
 
         # State (16x32x32)
         self.conv2 = BayesianConv2D(in_channels=16, out_channels=32,
                                     kernel_size=5, stride=1, padding=2, ratio=ratio)
         self.bn2 = nn.BatchNorm2d(num_features=32)
+        self.maxpool2 = nn.MaxPool2d(2)
 
         # State (32x16x16)
 
         self.conv3 = BayesianConv2D(in_channels=32, out_channels=16,
                                     kernel_size=3, stride=1, padding=1, ratio=ratio)
         self.bn3 = nn.BatchNorm2d(num_features=16)
+        self.maxpool3 = nn.MaxPool2d(2)
 
         # State (16x8x8)
 
@@ -43,9 +46,9 @@ class Dcnn(nn.Module):
             self.last = nn.Linear(128, 7)
 
     def forward(self, x, head_idx=0, sample=False):
-        x = F.max_pool2d(F.relu(self.bn1(self.conv1(x, sample))))
-        x = F.max_pool2d(F.relu(self.bn2(self.conv2(x, sample))))
-        x = F.max_pool2d(F.relu(self.bn3(self.conv3(x, sample))))
+        x = self.maxpool1(F.relu(self.bn1(self.conv1(x, sample))))
+        x = self.maxpool2(F.relu(self.bn2(self.conv2(x, sample))))
+        x = self.maxpool3(F.relu(self.bn3(self.conv3(x, sample))))
 
         x = x.reshape(x.size(0), -1)
 
