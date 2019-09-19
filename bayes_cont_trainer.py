@@ -212,7 +212,7 @@ class baye_DCNN(object):
                         outputs = self.C(images, self.task_idx)
                     else:
                         outputs = self.C(images)
-                    train_loss = self.compute_loss(outputs, labels, mini_batch_size=outputs.size[0])
+                    train_loss = self.compute_loss(outputs, labels, mini_batch_size=outputs.size(0))
 
                     # Backward
                     self.C_optim.zero_grad()
@@ -358,7 +358,7 @@ class baye_DCNN(object):
                 total = labels.size(0)
                 correct = (predicted == labels).sum().item()
                 eval_acc += 100 * correct / total
-                test_loss += self.compute_loss(outputs, labels, mini_batch_size=outputs.size[0])
+                test_loss += self.compute_loss(outputs, labels, mini_batch_size=outputs.size(0))
 
                 # env_name = self.args.env_name
                 # print("##### Env name: {} #####".format(env_name))
