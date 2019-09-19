@@ -103,7 +103,8 @@ if __name__ == "__main__":
     parser.add_argument('--ucl', default=False, type=str2bool, help='Apply ucl constraint')
     parser.add_argumnet('--alpha', default=0.01, type=float, help='(default=%(default)f)')
     parser.add_argumnet('--ratio', default=0.5, type=float, help='(default=%(default)f)')
-    parser.add_argument('--rho', type = float, default=-2.783, help='initial rho')
+    parser.add_argument('--rho', type=float, default=-2.783, help='initial rho')
+    parser.add_argument('--lr_rho', type=float, default=0.001, help='initial lr rho for ucl')
 
     args = parser.parse_args()
 

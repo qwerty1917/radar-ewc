@@ -11,7 +11,7 @@ import numpy as np
 from dataloader import return_data
 from models.baye_cnn import Dcnn
 from copy import deepcopy
-from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter, set_seed, freeze_model
+from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter, set_seed, freeze_model, Adam
 from models.bayes_layer import BayesianLinear, BayesianConv2D, _calculate_fan_in_and_fan_out
 
 ## Weights init function, DCGAN use 0.02 std
@@ -56,6 +56,7 @@ class baye_DCNN(object):
         self.task_idx = 0
         self.train_batch_size = args.train_batch_size
         self.lr = args.lr
+        self.lr_rho = args.lr_rho
 
         self.global_iter = 0
         self.criterion = nn.CrossEntropyLoss()
@@ -95,6 +96,16 @@ class baye_DCNN(object):
         self.saved = 0
         self.ratio = args.ratio
 
+        self.param_name = []
+
+        for (name, p) in self.model.named_parameters():
+            self.param_name.append(name)
+
+        if len(args.parameter) >= 1:
+            params = args.parameter.split(',')
+            print('Setting parameters to', params)
+            self.lamb = float(params[0])
+
         if self.ewc and not self.continual:
             raise ValueError("Cannot set EWC with no continual setting")
 
@@ -103,7 +114,7 @@ class baye_DCNN(object):
 
         self.C.apply(weights_init)
 
-        self.C_optim = optim.Adam(self.C.parameters(), lr=self.lr)
+        self.C_optim = Adam(self.C.parameters(), lr=self.lr, lr_rho=self.lr_rho, param_name=self.param_name)
 
         if self.cuda:
             self.C = cuda(self.C, self.cuda)
