@@ -209,9 +209,9 @@ class baye_DCNN(object):
                     self.global_iter += 1
                     # Forward
                     if self.multi:
-                        outputs = self.C(images, self.task_idx)
+                        outputs = self.C(images, self.task_idx, sample=True)
                     else:
-                        outputs = self.C(images)
+                        outputs = self.C(images, sample=True)
                     train_loss = self.compute_loss(outputs, labels, mini_batch_size=outputs.size(0))
 
                     # Backward
@@ -350,9 +350,9 @@ class baye_DCNN(object):
                 labels = cuda(labels, self.cuda)
 
                 if self.multi:
-                    outputs = self.C(images, task_idx)
+                    outputs = self.C(images, task_idx, sample=False)
                 else:
-                    outputs = self.C(images)
+                    outputs = self.C(images, sample=False)
 
                 _, predicted = torch.max(outputs, 1)
                 total = labels.size(0)
@@ -376,7 +376,7 @@ class baye_DCNN(object):
         # Regularization for all previous tasks
         reg_loss = self.custom_regularization(self.C_old, self.C, mini_batch_size)
 
-        return loss + self.lamb * reg_loss
+        return loss + reg_loss
 
     # custom regularization
 
