@@ -146,28 +146,31 @@ def make_log_name(args):
     log_name += '_window{}'.format(args.time_window)
     if args.multi:
         log_name += '_multi'
-    if args.ewc:
-        log_name += '_ewc'
-        if args.online:
-            log_name += '_online'
-            log_name += '_gamma{}'.format(args.gamma)
-        if args.fisher_normalize:
-            log_name += '_normalized'
-        log_name += '_lamb{}'.format(args.lamb)
+    if args.continual:
+        if args.ewc:
+            log_name += '_ewc'
+            if args.online:
+                log_name += '_online'
+                log_name += '_gamma{}'.format(args.gamma)
+            if args.fisher_normalize:
+                log_name += '_normalized'
+            log_name += '_lamb{}'.format(args.lamb)
 
-    elif args.hat_ewc:
-        log_name += '_hatewc'
-        if args.fisher_normalize:
-            log_name += '_normalized'
-        log_name += '_lamb{}'.format(args.lamb)
-    elif args.l2:
-        log_name += '_l2'
-        log_name += '_lamb{}'.format(args.lamb)
-    elif args.si:
-        log_name += '_si'
-        log_name += '_lamb{}_eps{}'.format(args.lamb, args.si_eps)
+        elif args.hat_ewc:
+            log_name += '_hatewc'
+            if args.fisher_normalize:
+                log_name += '_normalized'
+            log_name += '_lamb{}'.format(args.lamb)
+        elif args.l2:
+            log_name += '_l2'
+            log_name += '_lamb{}'.format(args.lamb)
+        elif args.si:
+            log_name += '_si'
+            log_name += '_lamb{}_eps{}'.format(args.lamb, args.si_eps)
+        else:
+            log_name += '_fine'
     else:
-        log_name += '_fine'
+        log_name += '_whole_data'
 
     log_name += '_epochs{}'.format(args.epoch)
 

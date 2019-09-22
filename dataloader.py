@@ -2,14 +2,15 @@ from pathlib import Path
 
 import PIL
 import numpy as np
-from torch.utils.data import DataLoader
-from torch.utils.data import ConcatDataset
+import torch.utils.data as data
+from torch.utils.data import DataLoader, ConcatDataset
 from torchvision import transforms
-from torchvision.datasets import ImageFolder
+from torchvision.datasets import ImageFolder, VisionDataset
 import random
 import os
 from os.path import join
-from utils import list_dir, set_seed
+from utils import list_dir, list_files, set_seed
+from PIL import Image
 
 def return_data(args):
     # TODO: cnn_datasets return_data
@@ -156,18 +157,30 @@ def return_data(args):
             data_loader['task{}'.format(i)]['test'] = test_loader
     else:
         num_tasks = 1
-        train_data_concat = ConcatDataset(train_imagefolders)
-        test_data_concat = ConcatDataset(test_imagefolders)
+        # if args.multi:
 
-        train_loader = DataLoader(train_data_concat, batch_size=train_batch_size,
-                                  shuffle=True, num_workers=num_workers,
-                                  pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
-        test_loader = DataLoader(test_data_concat, batch_size=test_batch_size,
-                                 shuffle=True, num_workers=num_workers,
-                                 pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
-
-        data_loader['train'] = train_loader
-        data_loader['test'] = test_loader
+        train_dataset = RadarDataset(root, train=True)
+        test_dataset = RadarDataset(root, train=False)
+        data_loader['train'] = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True,
+                                          num_workers=num_workers, pin_memory=True,
+                                          drop_last=True, worker_init_fn=_init_fn)
+        data_loader['test'] = DataLoader(test_dataset, batch_size=test_batch_size, shuffle=True,
+                                         num_workers=num_workers, pin_memory=True,
+                                         drop_last=True, worker_init_fn=_init_fn)
+        # else:
+        #
+        #     train_data_concat = ConcatDataset(train_imagefolders)
+        #     test_data_concat = ConcatDataset(test_imagefolders)
+        #
+        #     train_loader = DataLoader(train_data_concat, batch_size=train_batch_size,
+        #                               shuffle=True, num_workers=num_workers,
+        #                               pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
+        #     test_loader = DataLoader(test_data_concat, batch_size=test_batch_size,
+        #                              shuffle=True, num_workers=num_workers,
+        #                              pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
+        #
+        #     data_loader['train'] = train_loader
+        #     data_loader['test'] = test_loader
 
     return data_loader, num_tasks
 
@@ -266,3 +279,46 @@ class RandomNoise(object):
 
     def __repr__(self):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+
+
+class RadarDataset(VisionDataset):
+    def __init__(self, root, train=True, transform=None, target_transform=None):
+        super(RadarDataset, self).__init__(root, transform=transform, target_transform=target_transform)
+        self.train = train
+
+        subjects = list_dir(root)
+
+        data_path = self._get_target_folder()
+
+        subjects_data = sum([[join(s, data_path)] for s in subjects], [])
+        self._activities = [[join(sd, a) for a in list_dir(join(root, sd))] for sd in subjects_data]
+
+        self._activity_images = sum(sum([
+            [[(image, idx, label) for image in list_files(join(root, s, data_path, a), '.png')] for label, a in
+             enumerate(list_dir(join(root, s, data_path)))] for idx, s in enumerate(subjects)], []), [])
+
+    def __len__(self):
+        return len(self._activity_images)
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+        Returns:
+            tuple: (image_name, idx, label) where idx is subject_index of the target class and label is activity class
+        """
+
+        image_name, sub_idx, label = self._activity_images[index]
+        image_path = join(self.root, self._activities[sub_idx][label], image_name)
+        image = Image.open(image_path, mode='r').convert('L')
+
+        if self.transform:
+            image = self.transform(image)
+
+        if self.target_transform:
+            label = self.target_transform(label)
+
+        return image, sub_idx, label
+
+    def _get_target_folder(self):
+        return 'train' if self.train else 'test'

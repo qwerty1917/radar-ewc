@@ -2,8 +2,9 @@ import torch
 import numpy as np
 import argparse
 
-from cont_trainer import DCNN
+from cont_trainer import cont_DCNN
 from bayes_cont_trainer import baye_DCNN
+from non_cont_trainer import DCNN
 
 from utils import str2bool, set_seed
 
@@ -25,7 +26,10 @@ def main(args):
             torch.set_default_tensor_type('torch.cuda.FloatTensor')
             net = baye_DCNN(args)
         else:
-            net = DCNN(args)
+            if args.continual:
+                net = cont_DCNN(args)
+            else:
+                net = DCNN(args)
     else:
         raise ValueError('cnn_type should be one of DCNN,')
 

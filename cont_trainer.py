@@ -29,7 +29,7 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 
-class DCNN(object):
+class cont_DCNN(object):
     def __init__(self, args):
         self.args = args
 
@@ -198,10 +198,7 @@ class DCNN(object):
 
         while self.task_idx < self.num_tasks:
 
-            if self.continual:
-                data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
-            else:
-                data_loader = self.data_loader['train']
+            data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
 
             # Prepare <dicts> to store running importance estimates and param-values before update ("Synaptic Intelligence
             if self.si:
@@ -378,10 +375,7 @@ class DCNN(object):
         eval_acc = 0
         test_loss = 0
         with torch.no_grad():
-            if self.continual:
-                data_loader = self.data_loader['task{}'.format(task_idx)]['test']
-            else:
-                data_loader = self.data_loader['test']
+            data_loader = self.data_loader['task{}'.format(task_idx)]['test']
 
             for i, (images, labels) in enumerate(data_loader):
                 images = cuda(images, self.cuda)
