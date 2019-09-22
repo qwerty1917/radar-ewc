@@ -61,15 +61,15 @@ class Dcnn(nn.Module):
 
         if self.multi:
             if self.continual:
-                x = self.last[head_idx](x)
+                out = self.last[head_idx](x)
             else:
-                x = []
+                out = []
                 for i in range(self.num_tasks):
                     x.append(self.last[i](x))
         else:
-            x = self.last(x)
+            out = self.last(x)
 
-        return x
+        return out
 
 """
     def forward(self, x, head_idx=0):
