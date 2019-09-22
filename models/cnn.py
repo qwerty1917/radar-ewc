@@ -64,8 +64,8 @@ class Dcnn(nn.Module):
                 x = self.last[head_idx](x)
             else:
                 x = []
-                for idx in head_idx:
-                    x.append(self.last[idx](x))
+                for i in range(self.num_tasks):
+                    x.append(self.last[i](x))
         else:
             x = self.last(x)
 

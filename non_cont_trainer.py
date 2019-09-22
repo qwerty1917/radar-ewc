@@ -180,10 +180,14 @@ class DCNN(object):
 
                 self.global_iter += 1
                 # Forward
+                outputs = self.C(images)
+
                 if self.multi:
-                    outputs = self.C(images, sub_idxs)
-                else:
-                    outputs = self.C(images)
+                    # turn output list of heads to tensor and switch index
+                    outputs = torch.stack(outputs).permute(1,0,2)
+
+                    outputs = torch.gather(outputs, dim=1, index=sub_idxs)
+
                 train_loss = self.criterion(outputs, labels)
 
                 # Backward
