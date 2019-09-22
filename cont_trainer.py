@@ -106,7 +106,7 @@ class cont_DCNN(object):
 
     def model_init(self):
         # TODO: CNN model_init
-        self.C = Dcnn(self.input_channel, self.multi, self.num_tasks)
+        self.C = Dcnn(self.input_channel, self.multi, self.continual, self.num_tasks)
 
         self.C.apply(weights_init)
 

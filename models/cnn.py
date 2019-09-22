@@ -2,7 +2,7 @@ import torch.nn as nn
 
 
 class Dcnn(nn.Module):
-    def __init__(self, input_channel, multi=False, num_tasks=12):
+    def __init__(self, input_channel, multi=False, continual=True, num_tasks=12):
         super(Dcnn, self).__init__()
 
         self.conv_layers = nn.Sequential(
@@ -44,6 +44,8 @@ class Dcnn(nn.Module):
 
         # State (128)
         self.multi = multi
+        self.continual = continual
+
         if self.multi:
             self.num_tasks = num_tasks
             self.last = nn.ModuleList()
@@ -52,11 +54,20 @@ class Dcnn(nn.Module):
         else:
             self.last = nn.Linear(128, 7)
 
-    def forward(self, x):
+    def forward(self, x, head_idx=0):
         x = self.conv_layers(x)
         x = x.reshape(x.size(0), -1)
         x = self.fc_layers(x)
-        x = self.last(x)
+
+        if self.multi:
+            if self.continual:
+                x = self.last[head_idx](x)
+            else:
+                x = []
+                for idx in head_idx:
+                    x.append(self.last[idx](x))
+        else:
+            x = self.last(x)
 
         return x
 

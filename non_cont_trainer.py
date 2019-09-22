@@ -179,12 +179,10 @@ class DCNN(object):
 
                 self.global_iter += 1
                 # Forward
-                outputs = self.C(images)
-
-                # TODO: multi-head cont trainer should be modified similar to this way
                 if self.multi:
-                    outputs = torch.gather(outputs, dim=1, index=sub_idxs.view(-1,1))
-
+                    outputs = self.C(images, sub_idxs)
+                else:
+                    outputs = self.C(images)
                 train_loss = self.criterion(outputs, labels)
 
                 # Backward
