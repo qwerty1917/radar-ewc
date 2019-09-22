@@ -52,6 +52,15 @@ class Dcnn(nn.Module):
         else:
             self.last = nn.Linear(128, 7)
 
+    def forward(self, x):
+        x = self.conv_layers(x)
+        x = x.reshape(x.size(0), -1)
+        x = self.fc_layers(x)
+        x = self.last(x)
+
+        return x
+
+"""
     def forward(self, x, head_idx=0):
         x = self.conv_layers(x)
         x = x.reshape(x.size(0), -1)
@@ -62,3 +71,4 @@ class Dcnn(nn.Module):
             x = self.last(x)
 
         return x
+"""
