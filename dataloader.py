@@ -159,8 +159,8 @@ def return_data(args):
         num_tasks = 1
         # if args.multi:
 
-        train_dataset = RadarDataset(root, train=True)
-        test_dataset = RadarDataset(root, train=False)
+        train_dataset = RadarDataset(root, train=True, transform=transform)
+        test_dataset = RadarDataset(root, train=False, transform=transform)
         data_loader['train'] = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True,
                                           num_workers=num_workers, pin_memory=True,
                                           drop_last=True, worker_init_fn=_init_fn)
