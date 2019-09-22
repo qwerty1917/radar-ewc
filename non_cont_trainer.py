@@ -177,6 +177,8 @@ class DCNN(object):
             for i, (images, sub_idxs, labels) in enumerate(data_loader):
                 images = cuda(images, self.cuda)
                 labels = cuda(labels, self.cuda)
+                sub_idxs = cuda(sub_idxs, self.cuda)
+                sub_idxs = sub_idxs.long()
 
                 self.global_iter += 1
                 # Forward
