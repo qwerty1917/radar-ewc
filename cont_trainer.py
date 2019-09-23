@@ -38,8 +38,10 @@ class cont_DCNN(object):
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
         self.eval_dir = os.path.join(args.eval_dir, args.date, args.continual)
+        self.model_dir = os.path.join(args.model_dir, args.date, args.continual)
 
         check_log_dir(self.eval_dir)
+        check_log_dir(self.model_dir)
         self.log_name = make_log_name(args)
 
         # Misc
@@ -327,8 +329,11 @@ class cont_DCNN(object):
                 print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(old_task_idx + 1, eval_loss, eval_acc))
                 acc_log[self.task_idx, old_task_idx] = eval_acc
 
-                np.savetxt(self.eval_dir + self.log_name + '.txt', acc_log, '%.4f')
-                print('Save at ' + self.eval_dir + self.log_name)
+            np.savetxt(os.path.join(self.eval_dir, self.log_name) + '.txt', acc_log, '%.4f')
+            print('Log saved at ' + os.path.join(self.eval_dir, self.log_name))
+            torch.save(self.C.state_dict(), os.path.join(self.model_dir, self.log_name) + '.pt')
+            print('Model saved at ' + os.path.join(self.eval_dir, self.log_name))
+
 
             if self.continual == 'ewc':
                 fisher_mat = self.estimate_fisher(data_loader, self.task_idx)

@@ -58,6 +58,8 @@ if __name__ == "__main__":
     parser.add_argument('--image_size', default=32, type=int, help='image size')
     parser.add_argument('--model_seed', default=1, type=int, help='pytorch seed')
     parser.add_argument('--subject_seed', default=1, type=int, help='pytorch seed')
+    parser.add_argument('--model_dir', default='./trained_models/', type=str, help='save directory for trained models')
+
 
     # Dataset
     parser.add_argument('--inter_fold_subject_shuffle', default=False, type=bool, help='subject shuffle inter-folds')
