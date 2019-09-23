@@ -82,11 +82,10 @@ class cont_DCNN(object):
 
         # Continual Learning
         self.continual = args.continual
-
         self.lamb = args.lamb
 
         # EWC
-        self.online = args.online
+        self.online = True if self.continual == 'ewc_online' else False
         self.gamma = args.gamma
         self.task_count = 0
         self.normalize = args.fisher_normalize
