@@ -250,12 +250,12 @@ class DCNN(object):
                 if self.early_stopping and (min_loss_not_updated >= self.early_stopping_iter):
                     early_stop = True
 
-            eval_loss, eval_acc = self.evaluate()
-            print("Final test loss: {:.3f}, Test acc.: {:.3f}".format(eval_loss, eval_acc))
-            acc_log[self.task_idx, self.task_idx] = eval_acc
+        eval_loss, eval_acc = self.evaluate()
+        print("Final test loss: {:.3f}, Test acc.: {:.3f}".format(eval_loss, eval_acc))
+        acc_log[self.task_idx, self.task_idx] = eval_acc
 
-            np.savetxt(self.eval_dir + self.log_name + '.txt', acc_log, '%.4f')
-            print('Save at ' + self.eval_dir + self.log_name)
+        np.savetxt(self.eval_dir + self.log_name + '.txt', acc_log, '%.4f')
+        print('Save at ' + self.eval_dir + self.log_name)
 
     def log_csv(self, task, epoch, g_iter, train_loss, train_acc, test_loss, test_acc, filename='log.csv'):
         file_path = self.output_dir.joinpath(filename)
