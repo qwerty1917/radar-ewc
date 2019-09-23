@@ -189,7 +189,7 @@ class DCNN(object):
                     outputs = torch.stack(outputs).permute(1,0,2)
 
                     outputs = torch.gather(outputs, dim=1, index=sub_idxs.view(-1,1,1).expand(-1, 1, outputs.shape[-1]))
-
+                    outputs = outputs.squeeze(1) # remove redundant dim
                 train_loss = self.criterion(outputs, labels)
 
                 # Backward
