@@ -18,14 +18,13 @@ def main(args):
     torch.set_printoptions(precision=4)
 
     if args.cnn_type == 'dcnn':
-        if args.ucl:
+        if args.continual == 'ucl':
             torch.set_default_tensor_type('torch.cuda.FloatTensor')
             net = baye_DCNN(args)
+        elif args.continual == 'none':
+            net = cont_DCNN(args)
         else:
-            if args.continual != 'none':
-                net = cont_DCNN(args)
-            else:
-                net = DCNN(args)
+            net = cont_DCNN(args)
     else:
         raise ValueError('cnn_type should be one of DCNN,')
 
