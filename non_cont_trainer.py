@@ -37,7 +37,8 @@ class DCNN(object):
 
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
-        self.eval_dir = args.eval_dir
+        self.eval_dir = os.path.join(args.eval_dir, args.date, args.continual)
+
         check_log_dir(self.eval_dir)
         self.log_name = make_log_name(args)
 
@@ -75,13 +76,14 @@ class DCNN(object):
         self.multi = args.multi
         self.num_tasks = args.num_tasks
         self.continual = args.continual
+
         self.model_init()
 
         # Dataset
         self.data_loader, self.num_tasks = return_data(args)
 
     def model_init(self):
-        self.C = Dcnn(self.input_channel, self.multi, self.continual, self.num_tasks)
+        self.C = Dcnn(self.input_channel, self.multi, continual=False, num_tasks=self.num_tasks)
 
         self.C.apply(weights_init)
 

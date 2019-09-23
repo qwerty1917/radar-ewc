@@ -22,7 +22,7 @@ def main(args):
             torch.set_default_tensor_type('torch.cuda.FloatTensor')
             net = baye_DCNN(args)
         else:
-            if args.continual:
+            if args.continual != 'none':
                 net = cont_DCNN(args)
             else:
                 net = DCNN(args)
@@ -81,28 +81,22 @@ if __name__ == "__main__":
     parser.add_argument('--multi_gpu', default=False, type=str2bool, help='enable multi gpu')
 
     # Continual Learning
-    parser.add_argument('--continual', default=True, type=str2bool, help='continual learning')
+    parser.add_argument('--continual', default='', type=str, required=True, help='continual learning method',
+                        choices=['ewc', 'hat_ewc', 'ewc_online', 'si', 'l2', 'ucl', 'none'])
+
     parser.add_argument('--lamb', default=0., type=float, help='regularization strength')
     parser.add_argument('--multi', default=False, type=str2bool, help='apply multi-head approach')
     parser.add_argument('--num-tasks', default=12, type=int, help='number of tasks for continual training')
     parser.add_argument('--subject_shuffle', default=False, type=str2bool, help='shuffle subjects')
 
     # EWC
-    parser.add_argument('--ewc', default=False, type=str2bool, help='Apply ewc constraint')
-    parser.add_argument('--hat_ewc', default=False, type=str2bool, help='Apply hat ewc constraint')
-    parser.add_argument('--online', default=False, type=str2bool, help='Apply online EWC')
     parser.add_argument('--gamma', default=1.0, type=float, help='online ewc gamma')
     parser.add_argument('--fisher_normalize', default=False, type=str2bool, help='normalize fisher')
 
     # SI
-    parser.add_argument('--si', default=False, type=str2bool, help='Apply si constraint')
     parser.add_argument('--si_eps', default=0.1, type=float, help='si epsilon')
 
-    # l2
-    parser.add_argument('--l2', default=False, type=str2bool, help='Apply l2 constraint')
-
     # UCL
-    parser.add_argument('--ucl', default=False, type=str2bool, help='Apply ucl constraint')
     parser.add_argument('--alpha', default=0.01, type=float, help='(default=%(default)f)')
     parser.add_argument('--ratio', default=0.5, type=float, help='(default=%(default)f)')
     parser.add_argument('--rho', type=float, default=-2.783, help='initial rho')

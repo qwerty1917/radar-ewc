@@ -37,7 +37,8 @@ class cont_DCNN(object):
 
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
-        self.eval_dir = args.eval_dir
+        self.eval_dir = os.path.join(args.eval_dir, args.date, args.continual)
+
         check_log_dir(self.eval_dir)
         self.log_name = make_log_name(args)
 
@@ -81,29 +82,25 @@ class cont_DCNN(object):
 
         # Continual Learning
         self.continual = args.continual
+
         self.lamb = args.lamb
 
         # EWC
-        self.ewc = args.ewc
         self.online = args.online
         self.gamma = args.gamma
         self.task_count = 0
         self.normalize = args.fisher_normalize
-        self.hat_ewc = args.hat_ewc
 
         # SI
-        self.si = args.si
         self.si_eps = args.si_eps
 
-        # l2
-        self.l2 = args.l2
 
-        if self.ewc and not self.continual:
-            raise ValueError("Cannot set EWC with no continual setting")
+        # if self.ewc and not self.continual:
+        #     raise ValueError("Cannot set EWC with no continual setting")
 
     def model_init(self):
         # TODO: CNN model_init
-        self.C = Dcnn(self.input_channel, self.multi, self.continual, self.num_tasks)
+        self.C = Dcnn(self.input_channel, self.multi, continual=True, num_tasks=self.num_tasks)
 
         self.C.apply(weights_init)
 
@@ -186,7 +183,7 @@ class cont_DCNN(object):
 
         acc_log = np.zeros((self.num_tasks, self.num_tasks), dtype=np.float32)
 
-        if self.si:
+        if self.continual == 'si':
             # Register starting param-values (needed for "intelligent synapses").
             for n, p in self.C.named_parameters():
                 if p.requires_grad:
@@ -198,7 +195,7 @@ class cont_DCNN(object):
             data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
 
             # Prepare <dicts> to store running importance estimates and param-values before update ("Synaptic Intelligence
-            if self.si:
+            if self.continual == 'si':
                 W = {}
                 p_old = {}
                 for n, p in self.C.named_parameters():
@@ -237,7 +234,7 @@ class cont_DCNN(object):
                     train_acc = 100 * correct / total
 
                     # Update running parameter importance estimates in W
-                    if self.si:
+                    if self.continual == 'si':
                         for n, p in self.C.named_parameters():
                             if p.requires_grad:
                                 n = n.replace('.', '__')
@@ -334,22 +331,22 @@ class cont_DCNN(object):
                 np.savetxt(self.eval_dir + self.log_name + '.txt', acc_log, '%.4f')
                 print('Save at ' + self.eval_dir + self.log_name)
 
-            if self.ewc:
+            if self.continual == 'ewc':
                 fisher_mat = self.estimate_fisher(data_loader, self.task_idx)
                 self.store_fisher_n_params(fisher_mat)
                 print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
 
-            elif self.hat_ewc:
+            elif self.continual == 'hat_ewc':
                 fisher_mat = self.estimate_fisher(data_loader, self.task_idx)
                 self.store_fisher_n_params_hat_ver(fisher_mat)
                 print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
 
             # SI: calculate and update the normalized path integral
-            elif self.si:
+            elif self.continual == 'si':
                 self.update_omega(W, self.si_eps)
                 print('omega for si updated successfully')
 
-            elif self.l2:
+            elif self.continual == 'l2':
                 self.store_params()
                 print('Parameters for task {} stored successfully!'.format(self.task_idx+1))
 
@@ -404,13 +401,13 @@ class cont_DCNN(object):
 
         # Regularization for all previous tasks
         reg_loss = 0.
-        if self.ewc:
+        if self.continual == 'ewc':
             reg_loss = self.ewc_loss()
-        elif self.hat_ewc:
+        elif self.continual == 'hat_ewc':
             reg_loss = self.ewc_loss_hat_ver()
-        elif self.si:
+        elif self.continual == 'si':
             reg_loss = self.surrogate_loss()
-        elif self.l2:
+        elif self.continual == 'l2':
             reg_loss = self.l2_loss()
 
         return loss + self.lamb * reg_loss

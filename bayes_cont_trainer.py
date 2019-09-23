@@ -39,7 +39,7 @@ class baye_DCNN(object):
 
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
-        self.eval_dir = args.eval_dir
+        self.eval_dir = os.path.join(args.eval_dir, args.date, args.continual)
         check_log_dir(self.eval_dir)
         self.log_name = make_log_name(args)
 
@@ -188,10 +188,7 @@ class baye_DCNN(object):
 
         while self.task_idx < self.num_tasks:
 
-            if self.continual:
-                data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
-            else:
-                data_loader = self.data_loader['train']
+            data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
 
             while True:
                 if self.epoch_i >= self.epoch or early_stop:
@@ -337,10 +334,9 @@ class baye_DCNN(object):
         eval_acc = 0
         test_loss = 0
         with torch.no_grad():
-            if self.continual:
-                data_loader = self.data_loader['task{}'.format(task_idx)]['test']
-            else:
-                data_loader = self.data_loader['test']
+
+            data_loader = self.data_loader['task{}'.format(task_idx)]['test']
+
 
             for i, (images, labels) in enumerate(data_loader):
                 images = cuda(images, self.cuda)

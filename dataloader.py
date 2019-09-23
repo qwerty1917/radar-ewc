@@ -140,7 +140,7 @@ def return_data(args):
             train_imagefolders.append(train_data)
             test_imagefolders.append(test_data)
 
-    if args.continual:
+    if args.continual != 'none':
         for i in range(num_tasks):
 
             train_loader = DataLoader(train_imagefolders[i], batch_size=train_batch_size,
