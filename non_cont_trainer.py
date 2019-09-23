@@ -189,7 +189,7 @@ class DCNN(object):
                     outputs = torch.stack(outputs).permute(1,0,2)
 
                     outputs = torch.gather(outputs, dim=1, index=sub_idxs.view(-1,1,1).expand(-1, 1, outputs.shape[-1]))
-                    outputs = outputs.squeeze(1) # remove redundant dim
+                    outputs = outputs.squeeze(1)  # remove redundant dim
                 train_loss = self.criterion(outputs, labels)
 
                 # Backward
@@ -280,11 +280,17 @@ class DCNN(object):
             for i, (images, sub_idxs, labels) in enumerate(data_loader):
                 images = cuda(images, self.cuda)
                 labels = cuda(labels, self.cuda)
+                sub_idxs = cuda(sub_idxs, self.cuda)
+                sub_idxs = sub_idxs.long()
+
+                outputs = self.C(images)
 
                 if self.multi:
-                    outputs = self.C(images, sub_idxs)
-                else:
-                    outputs = self.C(images)
+                    # turn output list of heads to tensor and switch index
+                    outputs = torch.stack(outputs).permute(1,0,2)
+
+                    outputs = torch.gather(outputs, dim=1, index=sub_idxs.view(-1,1,1).expand(-1, 1, outputs.shape[-1]))
+                    outputs = outputs.squeeze(1)  # remove redundant dim
 
                 _, predicted = torch.max(outputs, 1)
                 total = labels.size(0)
