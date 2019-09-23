@@ -17,11 +17,8 @@ def return_data(args):
     # train_dset_dir = args.train_dset_dir
     # test_dset_dir = args.test_dset_dir
 
-    if args.subject_shuffle:
-        set_seed(0)
-        random.seed(args.seed)
-    else:
-        set_seed(args.seed)
+    set_seed(args.model_seed)
+    random.seed(args.subject_seed)
 
     train_batch_size = args.train_batch_size
     test_batch_size = args.test_batch_size

@@ -12,11 +12,7 @@ def main(args):
     torch.backends.cudnn.enabled = True
     # torch.backends.cudnn.benchmark = True
 
-    seed = args.seed
-    if args.subject_shuffle:
-        set_seed(0)
-    else:
-        set_seed(seed)
+    set_seed(args.model_seed)
 
     np.set_printoptions(precision=4)
     torch.set_printoptions(precision=4)
@@ -61,7 +57,8 @@ if __name__ == "__main__":
     parser.add_argument('--load_ckpt', default=True, type=str2bool, help='load previous checkpoint')
     parser.add_argument('--ckpt_dir', default='cnn_checkpoint', type=str, help='weight directory')
     parser.add_argument('--image_size', default=32, type=int, help='image size')
-    parser.add_argument('--seed', default=1, type=int, help='pytorch seed')
+    parser.add_argument('--model_seed', default=1, type=int, help='pytorch seed')
+    parser.add_argument('--subject_seed', default=1, type=int, help='pytorch seed')
 
     # Dataset
     parser.add_argument('--inter_fold_subject_shuffle', default=False, type=bool, help='subject shuffle inter-folds')

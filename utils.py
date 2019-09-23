@@ -142,7 +142,7 @@ def make_log_name(args):
     if args.subject_shuffle:
         log_name += '_shuffle'
 
-    log_name += '_seed{}'.format(args.seed)
+    log_name += '_m_seed{}_s_seed{}'.format(args.model_seed, args.subject_seed)
     log_name += '_window{}'.format(args.time_window)
     if args.multi:
         log_name += '_multi'
