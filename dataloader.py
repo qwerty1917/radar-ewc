@@ -98,7 +98,7 @@ def return_data(args):
     """
 
     def _init_fn(worker_id):
-        np.random.seed(int(args.seed))
+        np.random.seed(int(args.model_seed))
 
     data_loader = {}
     if args.incremental:
