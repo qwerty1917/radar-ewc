@@ -49,7 +49,7 @@ class BayesianLinear(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
 
-        self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features))
+        self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).cuda())
 
         fan_in, _ = _calculate_fan_in_and_fan_out(self.weight_mu)
         gain = 1  # Var[w] + sigma^2 = 2/fan_in
@@ -63,7 +63,7 @@ class BayesianLinear(nn.Module):
         rho_init = np.log(np.exp(noise_std) - 1)
 
         nn.init.uniform_(self.weight_mu, -bound, bound)
-        self.bias = nn.Parameter(torch.Tensor(out_features).uniform_(0, 0))
+        self.bias = nn.Parameter(torch.Tensor(out_features).uniform_(0, 0).cuda())
 
         self.weight_rho = nn.Parameter(torch.Tensor(out_features, 1).uniform_(rho_init, rho_init))
 
@@ -98,7 +98,7 @@ class _BayesianConvNd(nn.Module):
         self.output_padding = output_padding
         self.groups = groups
 
-        self.weight_mu = nn.Parameter(torch.Tensor(out_channels, in_channels // groups, *kernel_size))
+        self.weight_mu = nn.Parameter(torch.Tensor(out_channels, in_channels // groups, *kernel_size).cuda())
 
         _, fan_out = _calculate_fan_in_and_fan_out(self.weight_mu)
         total_var = 2 / fan_out
@@ -112,7 +112,7 @@ class _BayesianConvNd(nn.Module):
         nn.init.uniform_(self.weight_mu, -bound, bound)
         self.bias = nn.Parameter(torch.Tensor(out_channels).uniform_(0, 0), requires_grad=bias)
 
-        self.weight_rho = nn.Parameter(torch.Tensor(out_channels, 1, 1, 1).uniform_(rho_init, rho_init))
+        self.weight_rho = nn.Parameter(torch.Tensor(out_channels, 1, 1, 1).uniform_(rho_init, rho_init).cuda())
 
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
 

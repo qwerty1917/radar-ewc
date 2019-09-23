@@ -398,9 +398,10 @@ class baye_DCNN(object):
         if self.saved:
             alpha = 1
 
-        prev_weight_strength = nn.Parameter(torch.Tensor(1, 1, 1, 1).uniform_(0, 0))
         if self.cuda:
-            prev_weight_strength = prev_weight_strength.cuda()
+            prev_weight_strength = nn.Parameter(torch.Tensor(1, 1, 1, 1).uniform_(0, 0).cuda())
+        else:
+            prev_weight_strength = nn.Parameter(torch.Tensor(1, 1, 1, 1).uniform_(0, 0))
             # else:
             #     prev_weight_strength = nn.Parameter(torch.Tensor(3, 1, 1, 1).uniform_(0, 0))
 
