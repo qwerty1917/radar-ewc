@@ -56,8 +56,8 @@ if __name__ == "__main__":
     parser.add_argument('--load_ckpt', default=True, type=str2bool, help='load previous checkpoint')
     parser.add_argument('--ckpt_dir', default='cnn_checkpoint', type=str, help='weight directory')
     parser.add_argument('--image_size', default=32, type=int, help='image size')
-    parser.add_argument('--model_seed', default=1, type=int, help='pytorch seed')
-    parser.add_argument('--subject_seed', default=1, type=int, help='pytorch seed')
+    parser.add_argument('--model_seed', default=1, type=int, help='model seed')
+    parser.add_argument('--subject_seed', default=1, type=int, help='subject shuffle seed')
     parser.add_argument('--model_dir', default='./trained_models/', type=str, help='save directory for trained models')
 
 

@@ -155,8 +155,11 @@ def make_log_name(args):
     if args.continual == 'ewc_online':
         log_name += '_gamma{}'.format(args.gamma)
 
-    if args.continual == 'si':
+    elif args.continual == 'si':
         log_name += '_eps{}'.format(args.si_eps)
+
+    elif args.continual == 'ucl':
+        log_name += '_alpha{}_ratio{}_lr-rho{}'.format(args.alpha, args.ratio, args.lr_rho)
 
     log_name += '_epochs{}'.format(args.epoch)
 
