@@ -8,7 +8,7 @@ from torch import nn
 from visdom import Visdom
 import numpy as np
 import random
-
+import math
 import os
 from torch.optim import Optimizer
 
