@@ -166,12 +166,17 @@ class IcarlTrainer(object):
                 print("Exemplar set for class-{}: {}".format(y, P_y.shape))
                 # show_images(P_y[:10])
 
+            # n_known 값 업데이트
             self.icarl.n_known = self.icarl.n_classes
             print("iCaRL classes: {}".format(self.icarl.n_known))
 
+            # print train_set_accuracy
             total = 0.0
             correct = 0.0
             for indices, images, labels, _ in train_loader:
+                print("## train images")
+                print(images.size(), labels.size())
+                print(labels)
                 images = cuda(Variable(images), self.cuda)
                 preds = self.icarl.classify(images, transform)
                 total += labels.size(0)
@@ -180,9 +185,13 @@ class IcarlTrainer(object):
 
             print('Train Accuracy: %d %%' % (100 * train_acc))
 
+            # print test_set_accuracy
             total = 0.0
             correct = 0.0
             for indices, images, labels, _ in test_loader:
+                print("## train images")
+                print(images.size(), labels.size())
+                print(labels)
                 images = cuda(Variable(images), self.cuda)
                 preds = self.icarl.classify(images, transform)
                 total += labels.size(0)

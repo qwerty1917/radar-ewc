@@ -62,29 +62,33 @@ class Icarl(nn.Module):
 
     def classify(self, x, transform):
         batch_size = x.size(0)
+        exemplar_array = np.array(self.exemplar_sets)  # (n_classes, samples_per_class, channel, row, col)
+        print("#### single exemplar set size: {}".format(exemplar_array.shape))
 
         if self.compute_means:
             exemplar_means = []
-            for P_y in self.exemplar_sets:
+            for P_y in self.exemplar_sets:  # P_y: (samples_per_class, channel, row, col)
                 features = []
                 # Extract feature for each exemplar in P_y
-                for ex in P_y:
+                for ex in P_y:  # ex: (channel, row, col)
                     ex = cuda(torch.tensor(ex), self.args.cuda)
-                    feature = self.feature_extractor(ex.unsqueeze(0))
-                    feature = feature.squeeze()
+                    feature = self.feature_extractor(ex.unsqueeze(0)) # TODO:feature extractor 제대로 학습하나?
+                    feature = feature.squeeze()  # feature: (128)
                     feature.data = feature.data / feature.data.norm()  # Normalize
                     features.append(feature)
                 features = torch.stack(features)
                 mu_y = features.mean(0).squeeze()
                 mu_y.data = mu_y.data / mu_y.data.norm()  # Normalize
-                exemplar_means.append(mu_y)
-            self.exemplar_means = exemplar_means
+                exemplar_means.append(mu_y)  # mu_y: (128)
+            self.exemplar_means = exemplar_means  # self.exemplar_means: (n_classes, feature_size)
             self.compute_means = False
 
-        exemplar_means = self.exemplar_means
+        exemplar_means = self.exemplar_means  # self.exemplar_means: (n_classes, feature_size)
         means = torch.stack(exemplar_means)  # (n_classes, feature_size)
         means = torch.stack([means] * batch_size)  # (batch_size, n_classes, feature_size)
         means = means.transpose(1, 2)  # (batch_size, feature_size, n_classes)
+
+        # TODO: @hyeongminaprk 여기 아래서부터 확인하기
 
         feature = self.feature_extractor(x)  # (batch_size, feature_size)
         for i in range(feature.size(0)):  # Normalize
@@ -149,7 +153,7 @@ class Icarl(nn.Module):
         self.increment_classes(len(new_classes))
         if self.args.cuda:
             self.cuda()
-        print("%d new classes" % (len(new_classes)))
+        print("{} new classes".format(len(new_classes)))
 
         # Form combined training set
         self.combine_dataset_with_exemplars(dataset)
@@ -194,8 +198,8 @@ class Icarl(nn.Module):
                 loss.backward()
                 optimizer.step()
 
-                if (i + 1) % 10 == 0:
+                if (i + 1) % 5 == 0:
                     print('Epoch [{}/{}], Iter [{}/{}] Loss: {}, known class: {}, new class: {}'.format(
-                        epoch_i + 1, self.args.epoch, i + 1, len(dataset) // self.args.train_batch_size, loss.data[0],
+                        epoch_i + 1, self.args.epoch, i + 1, len(dataset) // self.args.train_batch_size, loss.item(),
                         self.n_known, len(new_classes)
                     ))

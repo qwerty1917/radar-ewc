@@ -67,10 +67,7 @@ def return_data(args, class_range=None):
         np.random.seed(int(args.seed))
 
     data_loader = {}
-    if args.incremental:
-        root = './data/per_acitivity/'
-    else:
-        root = './data/per_subject/'
+    root = './data/per_subject/'
 
     num_tasks = len(list_dir(root))
 
