@@ -22,7 +22,7 @@ def main(args):
             # torch.set_default_tensor_type('torch.cuda.FloatTensor')
             net = baye_DCNN(args)
         elif args.continual == 'none':
-            net = cont_DCNN(args)
+            net = DCNN(args)
         else:
             net = cont_DCNN(args)
     else:
