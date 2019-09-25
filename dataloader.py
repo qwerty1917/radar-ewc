@@ -107,7 +107,7 @@ def return_data(args):
         root = './data/per_subject/'
 
     tasks = list_dir(root)
-    num_tasks = len(tasks)
+    num_tasks = args.num_tasks
 
     train_imagefolders = []
     test_imagefolders = []
@@ -116,7 +116,8 @@ def return_data(args):
         random.shuffle(tasks)
         print(tasks)
         for i, task in enumerate(tasks):
-
+            if i >= num_tasks:
+                break
             data_loader['task{}'.format(i)] = {}
 
             target_subject = join(root, task)
