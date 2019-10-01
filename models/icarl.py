@@ -22,9 +22,9 @@ class Icarl(nn.Module):
 
         self.bn = nn.BatchNorm1d(self.feature_size, momentum=0.01)
         self.ReLU = nn.ReLU()
-        self.fc = nn.Linear(self.feature_size, 1, bias=False)
+        self.fc = nn.Linear(self.feature_size, 2, bias=False)
 
-        self.n_classes = 1
+        self.n_classes = 2
         self.n_known = 0
 
         # List containing exemplar_sets
@@ -87,9 +87,6 @@ class Icarl(nn.Module):
         means = torch.stack(exemplar_means)  # (n_classes, feature_size)
         means = torch.stack([means] * batch_size)  # (batch_size, n_classes, feature_size)
         means = means.transpose(1, 2)  # (batch_size, feature_size, n_classes)
-
-        # TODO: @hyeongminaprk 여기 아래서부터 확인하기
-
         feature = self.feature_extractor(x)  # (batch_size, feature_size)
         for i in range(feature.size(0)):  # Normalize
             feature.data[i] = feature.data[i] / feature.data[i].norm()

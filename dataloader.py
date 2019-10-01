@@ -76,6 +76,7 @@ def return_data(args, class_range=None):
 
     train_imagefolders = []
     test_imagefolders = []
+    eval_imagefolders = []
     for i in range(num_tasks):
 
         data_loader['task{}'.format(i)] = {}
@@ -84,9 +85,11 @@ def return_data(args, class_range=None):
 
         train_data = IcarlDataset(root=target_subject + '/train', classes=class_range, transform=transform)
         test_data = IcarlDataset(root=target_subject + '/test', classes=range(list(class_range)[-1]+1), transform=transform)
+        eval_data = IcarlDataset(root=target_subject + '/test', classes=class_range, transform=transform)
 
         train_imagefolders.append(train_data)
         test_imagefolders.append(test_data)
+        eval_imagefolders.append(eval_data)
 
     if args.continual:
         for i in range(num_tasks):
@@ -116,15 +119,24 @@ def return_data(args, class_range=None):
         for i in range(1, len(test_imagefolders)):
             test_data_concat.append(test_imagefolders[i].samples, test_imagefolders[i].targets)
 
+        eval_data_concat = eval_imagefolders[0]
+        for i in range(1, len(eval_imagefolders)):
+            eval_data_concat.append(eval_imagefolders[i].samples, eval_imagefolders[i].targets)
+
         train_loader = DataLoader(train_data_concat, batch_size=train_batch_size,
                                   shuffle=True, num_workers=num_workers,
                                   pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
         test_loader = DataLoader(test_data_concat, batch_size=test_batch_size,
                                  shuffle=True, num_workers=num_workers,
                                  pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
+        eval_loader = DataLoader(eval_data_concat, batch_size=test_batch_size,
+                                 shuffle=True, num_workers=num_workers,
+                                 pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
+
 
         data_loader['train'] = train_loader
         data_loader['test'] = test_loader
+        data_loader['eval'] = eval_loader
 
     return data_loader, num_tasks, transform
 

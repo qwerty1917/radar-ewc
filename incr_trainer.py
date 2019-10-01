@@ -130,10 +130,13 @@ class IcarlTrainer(object):
     def train(self):
         self.set_mode('train')
 
-        acc_log = np.zeros((7, 7), dtype=np.float32)
+        acc_log = np.zeros((7-1, 7), dtype=np.float32)
 
-        for s in range(0, 7, self.num_cls_per_task):
-            data_loader, _, transform = return_data(self.args, class_range=range(s, s+self.num_cls_per_task))
+        for s in range(1, 7, self.num_cls_per_task):
+            if s == 1:
+                data_loader, _, transform = return_data(self.args, class_range=range(0, s+self.num_cls_per_task))
+            else:
+                data_loader, _, transform = return_data(self.args, class_range=range(s, s+self.num_cls_per_task))
 
             train_loader = data_loader['train']
             test_loader = data_loader['test']
@@ -198,18 +201,21 @@ class IcarlTrainer(object):
 
             # log
             for old_task_idx in range(s+1):
-                log_data_loader, _, transform = return_data(self.args, class_range=range(old_task_idx, old_task_idx+self.num_cls_per_task))
-                log_test_loader = log_data_loader['test']
+                log_data_loader, _, transform = return_data(self.args, class_range=range(old_task_idx, old_task_idx+1))
+                log_test_loader = log_data_loader['eval']
                 for indices, images, labels, _ in log_test_loader:
                     images = cuda(Variable(images), self.cuda)
                     preds = self.icarl.classify(images, transform)
                     total += labels.size(0)
                     correct += (preds.data.cpu() == labels.data.cpu()).sum()
                 test_acc = float(correct) / float(total)
-                acc_log[s, old_task_idx] = test_acc
+                acc_log[s-1, old_task_idx] = test_acc
 
                 np.savetxt(self.eval_file_path, acc_log, '%.4f')
                 print('Save at ' + self.eval_file_path)
+
+        utils.append_settings_to_file(self.eval_file_path, self.args)
+
 
 
 

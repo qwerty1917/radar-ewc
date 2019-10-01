@@ -2,6 +2,7 @@
 
 import argparse
 from pathlib import Path
+import json
 
 import torch
 from torch import nn
@@ -9,6 +10,7 @@ from torch.utils.data import Dataset, DataLoader, ConcatDataset
 from visdom import Visdom
 import numpy as np
 import random
+import git
 
 import os
 
@@ -279,3 +281,21 @@ def make_replay_dataloader(real_data_loader: DataLoader, replay_x, replay_y, tra
                                    worker_init_fn=real_data_loader.worker_init_fn)
 
     return replay_dataloader
+
+
+def make_settings_json(args):
+    args_dict = vars(args)
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha
+    commit_dict = {"sha": sha}
+    settings = {"commit": commit_dict, "args": args_dict}
+    settings_json = json.dumps(settings)
+    return settings_json
+
+
+def append_settings_to_file(file_path, args):
+    settings_json = make_settings_json(args)
+    f = open(file_path, "a+")
+    print("current settings: {}".format(settings_json))
+    f.write(settings_json)
+    f.close()
