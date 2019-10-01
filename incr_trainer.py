@@ -158,6 +158,7 @@ class IcarlTrainer(object):
                 images_concat = None
                 paths_concat = None
                 for indices, images, _, paths in y_class_dataloader['train']:
+                    images = cuda(images, self.cuda)
                     if images_concat is None:
                         images_concat = images
                         paths_concat = paths
