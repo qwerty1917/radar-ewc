@@ -198,6 +198,6 @@ class Icarl(nn.Module):
 
                 if (i + 1) % 10 == 0:
                     print('Epoch [{}/{}], Iter [{}/{}] Loss: {}, known class: {}, new class: {}'.format(
-                        epoch_i + 1, self.args.epoch, i + 1, loader.__len__() // self.args.train_batch_size, loss.item(),
+                        epoch_i + 1, self.args.epoch, i + 1, len(dataset) // self.args.train_batch_size, loss.item(),
                         self.n_known, len(new_classes)
                     ))
