@@ -405,7 +405,7 @@ class cont_DCNN(object):
 
         # Regularization for all previous tasks
         reg_loss = 0.
-        if self.continual == 'ewc':
+        if self.continual == 'ewc' or self.continual =='ewc_online':
             reg_loss = self.ewc_loss()
         elif self.continual == 'hat_ewc':
             reg_loss = self.ewc_loss_hat_ver()
