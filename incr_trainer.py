@@ -130,6 +130,8 @@ class IcarlTrainer(object):
     def train(self):
         self.set_mode('train')
 
+        acc_log = np.zeros((7, 7), dtype=np.float32)
+
         for s in range(0, 7, self.num_cls_per_task):
             data_loader, _, transform = return_data(self.args, class_range=range(s, s+self.num_cls_per_task))
 
@@ -193,6 +195,23 @@ class IcarlTrainer(object):
             test_acc = float(correct )/ float(total)
 
             print('Test Accuracy: %d %%' % (100 * test_acc))
+
+            # log
+            for old_task_idx in range(s+1):
+                log_data_loader, _, transform = return_data(self.args, class_range=range(old_task_idx, old_task_idx+self.num_cls_per_task))
+                log_test_loader = log_data_loader['test']
+                for indices, images, labels, _ in log_test_loader:
+                    images = cuda(Variable(images), self.cuda)
+                    preds = self.icarl.classify(images, transform)
+                    total += labels.size(0)
+                    correct += (preds.data.cpu() == labels.data.cpu()).sum()
+                test_acc = float(correct) / float(total)
+                acc_log[s, old_task_idx] = test_acc
+
+                np.savetxt(self.eval_file_path, acc_log, '%.4f')
+                print('Save at ' + self.eval_file_path)
+
+
 
 
 

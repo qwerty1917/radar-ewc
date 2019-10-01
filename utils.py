@@ -158,6 +158,9 @@ def make_log_name(args):
     elif args.gr:
         log_name += '_gr'
         log_name += '_replay_r{}_gp_lamb{}'.format(args.replay_r, args.gan_gp_lambda)
+    elif args.icarl:
+        log_name += '_icarl'
+        log_name += '_K{}_num_cls_per_task{}_feature_size{}'.format(args.icarl_K, args.icarl_num_cls_per_task, args.icarl_feature_size)
     else:
         log_name += '_fine'
 
