@@ -121,7 +121,7 @@ class Icarl(nn.Module):
             mu_p = mu_p / mu_p.norm()
             i = torch.argmin(torch.sqrt(torch.sum((mu - mu_p) ** 2, dim=1)))
 
-            exemplar_set.append(np.array(images[i]))
+            exemplar_set.append(np.array(images[i].cpu()))
             exemplar_path_set.append(np.array(paths[i]))
             exemplar_features.append(features[i])
         self.exemplar_sets.append(np.array(exemplar_set))
