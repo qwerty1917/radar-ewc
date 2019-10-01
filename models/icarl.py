@@ -103,6 +103,7 @@ class Icarl(nn.Module):
 
     def construct_exemplar_set(self, paths, images, m):
         images = torch.tensor(images, dtype=torch.float)
+        images = cuda(images, self.args.cuda)
         features = self.feature_extractor.forward(images)
         features.data = features.data / features.data.norm(dim=0)
 
