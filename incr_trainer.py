@@ -174,14 +174,11 @@ class IcarlTrainer(object):
             total = 0.0
             correct = 0.0
             for indices, images, labels, _ in train_loader:
-                print("## train images")
-                print(images.size(), labels.size())
-                print(labels)
                 images = cuda(Variable(images), self.cuda)
                 preds = self.icarl.classify(images, transform)
                 total += labels.size(0)
-                correct += (preds.data.cpu() == labels).sum()
-            train_acc = correct / total
+                correct += (preds.data.cpu() == labels.data.cpu()).sum()
+            train_acc = float(correct) / float(total)
 
             print('Train Accuracy: %d %%' % (100 * train_acc))
 
@@ -189,14 +186,11 @@ class IcarlTrainer(object):
             total = 0.0
             correct = 0.0
             for indices, images, labels, _ in test_loader:
-                print("## train images")
-                print(images.size(), labels.size())
-                print(labels)
                 images = cuda(Variable(images), self.cuda)
                 preds = self.icarl.classify(images, transform)
                 total += labels.size(0)
-                correct += (preds.data.cpu() == labels).sum()
-            test_acc = correct / total
+                correct += (preds.data.cpu() == labels.data.cpu()).sum()
+            test_acc = float(correct )/ float(total)
 
             print('Test Accuracy: %d %%' % (100 * test_acc))
 

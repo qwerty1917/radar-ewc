@@ -63,7 +63,7 @@ class Icarl(nn.Module):
     def classify(self, x, transform):
         batch_size = x.size(0)
         exemplar_array = np.array(self.exemplar_sets)  # (n_classes, samples_per_class, channel, row, col)
-        print("#### single exemplar set size: {}".format(exemplar_array.shape))
+        # print("#### single exemplar set size: {}".format(exemplar_array.shape))
 
         if self.compute_means:
             exemplar_means = []
