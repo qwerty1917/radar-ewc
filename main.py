@@ -50,6 +50,9 @@ if __name__ == "__main__":
     parser.add_argument('--lr', default=0.001, type=float, help='learning rate for the network')
     parser.add_argument('--early_stopping', default=False, type=str2bool, help='early stopping (bool)')
     parser.add_argument('--early_stopping_iter', default=500, type=int, help='training stops when train loss not improved in this iteration')
+    parser.add_argument('--lr_factor', default=3., type=float, help='learning rate decay factor')
+    parser.add_argument('--lr_patience', default=5., type=float, help='learning rate decay patience')
+    parser.add_argument('--lr_decay', default=False, type=str2bool, help='apply lr decay')
 
     # Network
     parser.add_argument('--cnn_type', default='dcnn', type=str, help='CNN types : dcnn,')

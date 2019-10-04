@@ -9,6 +9,7 @@ import shutil
 import numpy as np
 from dataloader import return_data
 from models.cnn import Dcnn
+from copy import deepcopy
 from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter, set_seed
 
 
@@ -54,6 +55,12 @@ class cont_DCNN(object):
         self.task_idx = 0
         self.train_batch_size = args.train_batch_size
         self.lr = args.lr
+
+        self.lr_decay = args.lr_decay
+        self.lr_min = args.lr / (args.lr_factor ** 5)
+        self.lr_factor = args.lr_factor
+        self.lr_patience = args.lr_patience
+
         self.global_iter = 0
         self.criterion = nn.CrossEntropyLoss()
         self.early_stopping = args.early_stopping
@@ -95,9 +102,12 @@ class cont_DCNN(object):
         # SI
         self.si_eps = args.si_eps
 
-
         # if self.ewc and not self.continual:
         #     raise ValueError("Cannot set EWC with no continual setting")
+
+    def _get_optimizer(self, lr=None):
+        if lr is None: lr = self.lr
+        return optim.Adam(self.C.parameters(), lr=lr)
 
     def model_init(self):
         # TODO: CNN model_init
@@ -194,6 +204,11 @@ class cont_DCNN(object):
         while self.task_idx < self.num_tasks:
 
             data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
+            best_loss = np.inf
+            best_model = deepcopy(self.C.state_dict())
+            lr = self.lr
+            patience = self.lr_patience
+            self.C_optim = self._get_optimizer(lr)
 
             # Prepare <dicts> to store running importance estimates and param-values before update ("Synaptic Intelligence
             if self.continual == 'si':
@@ -243,86 +258,110 @@ class cont_DCNN(object):
                                     W[n].add_(-p.grad * (p.detach() - p_old[n]))
                                 p_old[n] = p.detach().clone()
 
-                    if self.global_iter % 1 == 0:
+                    if self.global_iter % 2 == 0:
 
                         test_loss, test_acc = self.evaluate(self.task_idx)
 
-                        print('Task [{}], Epoch [{}/{}], Iter [{}], train loss: {:.4f}, train acc.: {:.4f}, test loss:{:.4f}, test acc.: {:.4f}, min_loss_not_updated: {}'
-                              .format(self.task_idx + 1, self.epoch_i, self.epoch, self.global_iter, train_loss.item(), train_acc, test_loss.item(), test_acc, min_loss_not_updated))
+                        print('Task [{}], Epoch [{}/{}], Iter [{}], train loss: {:.4f}, train acc.: {:.4f}, '
+                              'test loss:{:.4f}, test acc.: {:.4f}, min_loss_not_updated: {}'
+                              .format(self.task_idx + 1, self.epoch_i, self.epoch, self.global_iter, train_loss.item(),
+                                      train_acc, test_loss.item(), test_acc, min_loss_not_updated))
 
-                    if self.global_iter % 10 == 0:
-                        # make csv file
-                        self.log_csv(self.task_idx, self.epoch_i, self.global_iter, train_loss.item(), train_acc, test_loss.item(), test_acc, filename=self.log_name)
-                        self.save_checkpoint(filename=self.log_name+'_ckpt.tar')
+                        if self.global_iter % 10 == 0:
+                            # make csv file
 
-                        # visdom
-                        if self.visdom:
-                            self.plotter.plot(var_name='loss',
-                                              split_name='train',
-                                              title_name=self.date + ' Current task Loss' + ' lamb{}'.format(self.lamb),
-                                              x=self.global_iter,
-                                              y=train_loss.item())
-                            self.plotter.plot(var_name='loss',
-                                              split_name='test',
-                                              title_name=self.date + ' Current task Loss' + ' lamb{}'.format(self.lamb),
-                                              x=self.global_iter,
-                                              y=test_loss.item())
-                            self.plotter.plot(var_name='acc.',
-                                              split_name='train',
-                                              title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(self.lamb),
-                                              x=self.global_iter,
-                                              y=train_acc)
-                            self.plotter.plot(var_name='acc.',
-                                              split_name='test',
-                                              title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(self.lamb),
-                                              x=self.global_iter,
-                                              y=test_acc)
+                            self.log_csv(self.task_idx, self.epoch_i, self.global_iter, train_loss.item(), train_acc,
+                                         test_loss.item(), test_acc, filename=self.log_name)
+                            self.save_checkpoint(filename=self.log_name+'_ckpt.tar')
 
-                            task_loss_sum = 0
-                            task_acc_sum = 0
-                            for old_task_idx in range(self.task_idx+1):
-                                eval_loss, eval_acc = self.evaluate(old_task_idx)
-                                if not isinstance(eval_loss, float):
-                                    eval_loss = eval_loss.item()
-
-                                task_loss_sum += eval_loss
-                                task_acc_sum += eval_acc
-                                self.plotter.plot(var_name='task acc.',
-                                                  split_name='task {}'.format(old_task_idx+1),
-                                                  title_name=self.date + ' Task Accuracy' + ' lamb{}'.format(self.lamb),
+                            # visdom
+                            if self.visdom:
+                                self.plotter.plot(var_name='loss',
+                                                  split_name='train',
+                                                  title_name=self.date + ' Current task Loss' + ' lamb{}'.format(self.lamb),
                                                   x=self.global_iter,
-                                                  y=eval_acc)
-
-                                self.plotter.plot(var_name='task loss',
-                                                  split_name='task {}'.format(old_task_idx+1),
-                                                  title_name=self.date + ' Task Loss' + ' lamb{}'.format(self.lamb),
+                                                  y=train_loss.item())
+                                self.plotter.plot(var_name='loss',
+                                                  split_name='test',
+                                                  title_name=self.date + ' Current task Loss' + ' lamb{}'.format(self.lamb),
                                                   x=self.global_iter,
-                                                  y=eval_loss)
+                                                  y=test_loss.item())
+                                self.plotter.plot(var_name='acc.',
+                                                  split_name='train',
+                                                  title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(self.lamb),
+                                                  x=self.global_iter,
+                                                  y=train_acc)
+                                self.plotter.plot(var_name='acc.',
+                                                  split_name='test',
+                                                  title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(self.lamb),
+                                                  x=self.global_iter,
+                                                  y=test_acc)
 
-                            self.plotter.plot(var_name='task average acc.',
-                                              split_name='until task {}'.format(self.task_idx+1),
-                                              title_name = self.date + ' Task average acc.' + ' lamb{}'.format(self.lamb),
-                                              x=self.global_iter,
-                                              y=task_acc_sum/(self.task_idx+1))
+                                task_loss_sum = 0
+                                task_acc_sum = 0
+                                for old_task_idx in range(self.task_idx+1):
+                                    eval_loss, eval_acc = self.evaluate(old_task_idx)
+                                    if not isinstance(eval_loss, float):
+                                        eval_loss = eval_loss.item()
 
-                            self.plotter.plot(var_name='task average loss',
-                                              split_name='until task {}'.format(self.task_idx+1),
-                                              title_name = self.date + ' Task average loss' + ' lamb{}'.format(self.lamb),
-                                              x=self.global_iter,
-                                              y=task_loss_sum/(self.task_idx+1))
+                                    task_loss_sum += eval_loss
+                                    task_acc_sum += eval_acc
+                                    self.plotter.plot(var_name='task acc.',
+                                                      split_name='task {}'.format(old_task_idx+1),
+                                                      title_name=self.date + ' Task Accuracy' + ' lamb{}'.format(self.lamb),
+                                                      x=self.global_iter,
+                                                      y=eval_acc)
 
+                                    self.plotter.plot(var_name='task loss',
+                                                      split_name='task {}'.format(old_task_idx+1),
+                                                      title_name=self.date + ' Task Loss' + ' lamb{}'.format(self.lamb),
+                                                      x=self.global_iter,
+                                                      y=eval_loss)
 
+                                self.plotter.plot(var_name='task average acc.',
+                                                  split_name='until task {}'.format(self.task_idx+1),
+                                                  title_name = self.date + ' Task average acc.' + ' lamb{}'.format(self.lamb),
+                                                  x=self.global_iter,
+                                                  y=task_acc_sum/(self.task_idx+1))
 
-                    if min_loss is None:
-                        min_loss = train_loss.item()
-                    elif train_loss.item() < min_loss:
-                        min_loss = train_loss.item()
-                        min_loss_not_updated = 0
+                                self.plotter.plot(var_name='task average loss',
+                                                  split_name='until task {}'.format(self.task_idx+1),
+                                                  title_name = self.date + ' Task average loss' + ' lamb{}'.format(self.lamb),
+                                                  x=self.global_iter,
+                                                  y=task_loss_sum/(self.task_idx+1))
+
+                if self.lr_decay:
+                    eval_loss, eval_acc = self.evaluate(self.task_idx)
+
+                    if eval_loss < best_loss:
+                        best_loss = eval_loss
+                        best_model = deepcopy(self.C.state_dict())
+                        patience = self.lr_patience
+                        print(' *', end='')
                     else:
-                        min_loss_not_updated += 1
+                        patience -= 1
+                        if patience <= 0:
+                            lr /= self.lr_factor
+                            print(' lr={:.1e}'.format(lr), end='')
+                            if lr < self.lr_min:
+                                print()
 
-                    if self.early_stopping and (min_loss_not_updated >= self.early_stopping_iter):
-                        early_stop = True
+                            patience = self.lr_patience
+                            self.optimizer = self._get_optimizer(lr)
+
+                    # if min_loss is None:
+                    #     min_loss = train_loss.item()
+                    # elif train_loss.item() < min_loss:
+                    #     min_loss = train_loss.item()
+                    #     min_loss_not_updated = 0
+                    # else:
+                    #     min_loss_not_updated += 1
+                    #
+                    # if self.early_stopping and (min_loss_not_updated >= self.early_stopping_iter):
+                    #     early_stop = True
+
+            if self.lr_decay:
+                self.C.load_state_dict(best_model)
 
             for old_task_idx in range(self.task_idx+1):
                 eval_loss, eval_acc = self.evaluate(old_task_idx)
@@ -333,7 +372,6 @@ class cont_DCNN(object):
             print('Log saved at ' + os.path.join(self.eval_dir, self.log_name))
             torch.save(self.C.state_dict(), os.path.join(self.model_dir, self.log_name) + '.pt')
             print('Model saved at ' + os.path.join(self.eval_dir, self.log_name))
-
 
             if self.continual == 'ewc' or self.continual == 'ewc_online':
                 fisher_mat = self.estimate_fisher(data_loader, self.task_idx)
