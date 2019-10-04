@@ -163,6 +163,9 @@ def make_log_name(args):
 
     log_name += '_epochs{}'.format(args.epoch)
 
+    if args.lr_decay:
+        log_name += '_decay'
+
     return log_name
 
 
