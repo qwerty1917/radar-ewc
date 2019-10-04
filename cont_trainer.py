@@ -335,7 +335,7 @@ class cont_DCNN(object):
             print('Model saved at ' + os.path.join(self.eval_dir, self.log_name))
 
 
-            if self.continual == 'ewc':
+            if self.continual == 'ewc' or self.continual == 'ewc_online':
                 fisher_mat = self.estimate_fisher(data_loader, self.task_idx)
                 self.store_fisher_n_params(fisher_mat)
                 print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
