@@ -239,7 +239,7 @@ class baye_DCNN(object):
                     correct = (predicted == labels).sum().item()
                     train_acc = 100 * correct / total
 
-                    if self.global_iter % 2 == 0:
+                    if self.global_iter % 5 == 0:
 
                         test_loss, test_acc = self.evaluate(self.task_idx)
 
@@ -325,6 +325,7 @@ class baye_DCNN(object):
                             lr_rho /= self.lr_factor
                             print(' lr={:.1e}'.format(lr), end='')
                             if lr < self.lr_min:
+                                lr = self.lr_min
                                 print()
 
                             patience = self.lr_patience

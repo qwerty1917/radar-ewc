@@ -258,7 +258,7 @@ class cont_DCNN(object):
                                     W[n].add_(-p.grad * (p.detach() - p_old[n]))
                                 p_old[n] = p.detach().clone()
 
-                    if self.global_iter % 2 == 0:
+                    if self.global_iter % 5 == 0:
 
                         test_loss, test_acc = self.evaluate(self.task_idx)
 
@@ -344,6 +344,7 @@ class cont_DCNN(object):
                             lr /= self.lr_factor
                             print(' lr={:.1e}'.format(lr), end='')
                             if lr < self.lr_min:
+                                lr = self.lr_min
                                 print()
 
                             patience = self.lr_patience
