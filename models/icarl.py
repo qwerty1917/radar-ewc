@@ -18,7 +18,9 @@ class Icarl(nn.Module):
         # Network architecture
         self.feature_size = args.icarl_feature_size
         self.feature_extractor = Dcnn(input_channel=1, incremental=True, num_classes=2)
-        self.feature_extractor.output = nn.Linear(self.feature_extractor.output.in_features, self.feature_size)
+        self.feature_extractor.fc_layers = nn.Sequential(
+            nn.Linear(self.feature_extractor.fc_layers[0].in_features, self.feature_size)
+        )
 
         self.bn = nn.BatchNorm1d(self.feature_size, momentum=0.01)
         self.ReLU = nn.ReLU()
@@ -117,7 +119,7 @@ class Icarl(nn.Module):
             S = np.sum(exemplar_features, axis=0)
             phi = features
             mu = class_mean
-            mu_p = 1.0 / k * (phi + S)
+            mu_p = (1.0 / k) * (phi + S)
             mu_p = mu_p / mu_p.norm()
             i = torch.argmin(torch.sqrt(torch.sum((mu - mu_p) ** 2, dim=1)))
 

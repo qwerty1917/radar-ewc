@@ -41,14 +41,13 @@ class Dcnn(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.4),
 
+            # State (7)
+            nn.Linear(128, 7)
         )
-
-        self.output = nn.Linear(128, 7)
 
     def forward(self, x):
         x = self.conv_layers(x)
         x = x.reshape(x.size(0), -1)
         x = self.fc_layers(x)
-        x = self.output(x)
 
         return x
