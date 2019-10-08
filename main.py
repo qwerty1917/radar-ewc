@@ -88,6 +88,9 @@ if __name__ == "__main__":
     parser.add_argument('--continual', default='', type=str, required=True, help='continual learning method',
                         choices=['ewc', 'hat_ewc', 'ewc_online', 'si', 'l2', 'ucl', 'none'])
 
+    parser.add_argument('--pretrain', default=False, type=str2bool, help='only used with non continual trainer')
+    parser.add_argument('--num_pre_tasks', default=0, type=int, help='number of pretrain tasks')
+
     parser.add_argument('--lamb', default=0., type=float, help='regularization strength')
     parser.add_argument('--multi', default=False, type=str2bool, help='apply multi-head approach')
     parser.add_argument('--num-tasks', default=12, type=int, help='number of tasks for continual training')

@@ -76,12 +76,14 @@ class DCNN(object):
         self.input_channel = args.channel
         self.image_size = args.image_size
         self.multi = args.multi
-        self.num_tasks = args.num_tasks
+        self.num_tasks = args.num_tasks if self.multi else 1
         self.continual = args.continual
 
         self.model_init()
 
         # Dataset
+        self.pretrain = args.pretrain
+        self.num_pre_tasks = args.num_pre_tasks
         self.data_loader, self.num_tasks = return_data(args)
 
     def model_init(self):
@@ -165,7 +167,10 @@ class DCNN(object):
         min_loss_not_updated = 0
         early_stop = False
 
-        acc_log = np.zeros((self.num_tasks, self.num_tasks), dtype=np.float32)
+        if self.pretrain:
+            acc_log = np.zeros((12, 12), dtype=np.float32)
+        else:
+            acc_log = np.zeros((1, 1), dtype=np.float32)
 
         data_loader = self.data_loader['train']
 
@@ -253,7 +258,14 @@ class DCNN(object):
 
         eval_loss, eval_acc = self.evaluate()
         print("Final test loss: {:.3f}, Test acc.: {:.3f}".format(eval_loss, eval_acc))
-        acc_log[self.task_idx, self.task_idx] = eval_acc
+        if self.pretrain:
+            for task_idx in range(12):
+                _, eval_acc = self.evaluate(task_idx)
+                print("Task{} - Test acc.: {:.3f}".format(task_idx + 1, eval_acc))
+                acc_log[self.task_idx, task_idx] = eval_acc
+
+        else:
+            acc_log[self.task_idx, self.task_idx] = eval_acc
 
         np.savetxt(os.path.join(self.eval_dir, self.log_name) + '.txt', acc_log, '%.4f')
         print('Log saved at ' + os.path.join(self.eval_dir, self.log_name))
@@ -270,7 +282,7 @@ class DCNN(object):
         wr.writerow([task, g_iter, epoch, round(train_loss, 4), round(train_acc, 4), round(test_loss, 4), round(test_acc, 4)])
         file.close()
 
-    def evaluate(self):
+    def evaluate(self, task_idx=None):
         # self.load_checkpoint()
         self.set_mode('eval')
 
@@ -278,7 +290,10 @@ class DCNN(object):
         test_loss = 0
         with torch.no_grad():
 
-            data_loader = self.data_loader['test']
+            if task_idx is None:
+                data_loader = self.data_loader['test']
+            else:
+                data_loader = self.data_loader['task{}'.format(task_idx)]['test']
 
             for i, (images, sub_idxs, labels) in enumerate(data_loader):
                 images = cuda(images, self.cuda)

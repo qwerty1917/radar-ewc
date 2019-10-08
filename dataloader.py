@@ -155,17 +155,41 @@ def return_data(args):
             data_loader['task{}'.format(i)]['train'] = train_loader
             data_loader['task{}'.format(i)]['test'] = test_loader
     else:
-        num_tasks = 1
-        # if args.multi:
+        # for non-cont trainer
+        if args.pretrain:
+            # To prepare evaluate dataset for each task
+            for i in range(num_tasks):
+                test_loader = DataLoader(test_imagefolders[i], batch_size=test_batch_size,
+                                         shuffle=True, num_workers=num_workers,
+                                         pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
 
-        train_dataset = RadarDataset(root, train=True, transform=transform)
-        test_dataset = RadarDataset(root, train=False, transform=transform)
-        data_loader['train'] = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True,
-                                          num_workers=num_workers, pin_memory=True,
-                                          drop_last=True, worker_init_fn=_init_fn)
-        data_loader['test'] = DataLoader(test_dataset, batch_size=test_batch_size, shuffle=True,
-                                         num_workers=num_workers, pin_memory=True,
-                                         drop_last=True, worker_init_fn=_init_fn)
+                data_loader['task{}'.format(i)]['test'] = test_loader
+
+            train_data_concat = ConcatDataset(train_imagefolders[:args.num_pre_tasks])
+            test_data_concat = ConcatDataset(test_imagefolders[:args.num_pre_tasks])
+
+            train_loader = DataLoader(train_data_concat, batch_size=train_batch_size,
+                                      shuffle=True, num_workers=num_workers,
+                                      pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
+            test_loader = DataLoader(test_data_concat, batch_size=test_batch_size,
+                                     shuffle=True, num_workers=num_workers,
+                                     pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
+
+            data_loader['train'] = train_loader
+            data_loader['test'] = test_loader
+
+
+        else:
+            # if args.multi:
+
+            train_dataset = RadarDataset(root, train=True, transform=transform)
+            test_dataset = RadarDataset(root, train=False, transform=transform)
+            data_loader['train'] = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True,
+                                              num_workers=num_workers, pin_memory=True,
+                                              drop_last=True, worker_init_fn=_init_fn)
+            data_loader['test'] = DataLoader(test_dataset, batch_size=test_batch_size, shuffle=True,
+                                             num_workers=num_workers, pin_memory=True,
+                                             drop_last=True, worker_init_fn=_init_fn)
         # else:
         #
         #     train_data_concat = ConcatDataset(train_imagefolders)
