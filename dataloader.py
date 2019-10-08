@@ -11,6 +11,7 @@ import os
 from os.path import join
 from utils import list_dir, list_files, set_seed
 from PIL import Image
+import natsort
 
 def return_data(args):
     # TODO: cnn_datasets return_data
@@ -165,31 +166,18 @@ def return_data(args):
 
                 data_loader['task{}'.format(i)]['test'] = test_loader
 
-            train_data_concat = ConcatDataset(train_imagefolders[:args.num_pre_tasks])
-            test_data_concat = ConcatDataset(test_imagefolders[:args.num_pre_tasks])
-
-            train_loader = DataLoader(train_data_concat, batch_size=train_batch_size,
-                                      shuffle=True, num_workers=num_workers,
-                                      pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
-            test_loader = DataLoader(test_data_concat, batch_size=test_batch_size,
-                                     shuffle=True, num_workers=num_workers,
-                                     pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
-
-            data_loader['train'] = train_loader
-            data_loader['test'] = test_loader
-
-
-        else:
             # if args.multi:
 
-            train_dataset = RadarDataset(root, train=True, transform=transform)
-            test_dataset = RadarDataset(root, train=False, transform=transform)
-            data_loader['train'] = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True,
-                                              num_workers=num_workers, pin_memory=True,
-                                              drop_last=True, worker_init_fn=_init_fn)
-            data_loader['test'] = DataLoader(test_dataset, batch_size=test_batch_size, shuffle=True,
-                                             num_workers=num_workers, pin_memory=True,
-                                             drop_last=True, worker_init_fn=_init_fn)
+        train_dataset = RadarDataset(root, train=True, transform=transform, pretrain=args.pretrain,
+                                     num_pre_tasks=args.num_pre_tasks, subject_shuffle=args.subject_shuffle)
+        test_dataset = RadarDataset(root, train=False, transform=transform, pretrain=args.pretrain,
+                                    num_pre_tasks=args.num_pre_tasks, subject_shuffle=args.subject_shuffle)
+        data_loader['train'] = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True,
+                                          num_workers=num_workers, pin_memory=True,
+                                          drop_last=True, worker_init_fn=_init_fn)
+        data_loader['test'] = DataLoader(test_dataset, batch_size=test_batch_size, shuffle=True,
+                                         num_workers=num_workers, pin_memory=True,
+                                         drop_last=True, worker_init_fn=_init_fn)
         # else:
         #
         #     train_data_concat = ConcatDataset(train_imagefolders)
@@ -305,15 +293,22 @@ class RandomNoise(object):
 
 
 class RadarDataset(VisionDataset):
-    def __init__(self, root, train=True, transform=None, target_transform=None):
+    def __init__(self, root, train=True, transform=None, target_transform=None,
+                 pretrain=False, num_pre_tasks=None, subject_shuffle=True):
         super(RadarDataset, self).__init__(root, transform=transform, target_transform=target_transform)
         self.train = train
 
         subjects = list_dir(root)
 
+        if pretrain and (num_pre_tasks is not None):
+            if not subject_shuffle:
+                subjects = natsort.natsorted(subjects)
+            subjects = subjects[:num_pre_tasks]
+
         data_path = self._get_target_folder()
 
         subjects_data = sum([[join(s, data_path)] for s in subjects], [])
+
         self._activities = [[join(sd, a) for a in list_dir(join(root, sd))] for sd in subjects_data]
 
         self._activity_images = sum(sum([
