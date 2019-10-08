@@ -18,8 +18,15 @@ class Icarl(nn.Module):
         # Network architecture
         self.feature_size = args.icarl_feature_size
         self.feature_extractor = Dcnn(input_channel=1, incremental=True, num_classes=2)
+
+        fc1_features = self.feature_extractor.fc_layers[0].in_features
+        fc2_features = int((self.feature_extractor.fc_layers[0].in_features + self.feature_size)/2)
+        fc3_features = self.feature_size
+
         self.feature_extractor.fc_layers = nn.Sequential(
-            nn.Linear(self.feature_extractor.fc_layers[0].in_features, self.feature_size)
+            nn.Linear(fc1_features, fc1_features),
+            nn.Linear(fc1_features, fc2_features),
+            nn.Linear(fc2_features, fc3_features)
         )
 
         self.bn = nn.BatchNorm1d(self.feature_size, momentum=0.01)
