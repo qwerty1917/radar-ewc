@@ -185,7 +185,7 @@ class DCNN(object):
 
 
         if self.pretrain:
-            acc_log = np.zeros((12, 12), dtype=np.float32)
+            acc_log = np.zeros((1, 12), dtype=np.float32)
         else:
             acc_log = np.zeros((1, 1), dtype=np.float32)
 
