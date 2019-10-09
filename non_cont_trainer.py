@@ -10,7 +10,7 @@ import numpy as np
 from dataloader import return_data
 from models.cnn import Dcnn
 from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter, set_seed
-import deepcopy
+from copy import deepcopy
 
 ## Weights init function, DCGAN use 0.02 std
 def weights_init(m):
