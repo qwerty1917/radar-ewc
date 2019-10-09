@@ -10,7 +10,7 @@ import numpy as np
 from dataloader import return_data
 from models.cnn import Dcnn
 from utils import cuda, make_log_name, check_log_dir, VisdomLinePlotter, set_seed
-
+import deepcopy
 
 ## Weights init function, DCGAN use 0.02 std
 def weights_init(m):
@@ -54,6 +54,12 @@ class DCNN(object):
         self.task_idx = 0
         self.train_batch_size = args.train_batch_size
         self.lr = args.lr
+
+        self.lr_decay = args.lr_decay
+        self.lr_min = args.lr / (args.lr_factor ** 5)
+        self.lr_factor = args.lr_factor
+        self.lr_patience = args.lr_patience
+
         self.global_iter = 0
         self.criterion = nn.CrossEntropyLoss()
         self.early_stopping = args.early_stopping
@@ -85,6 +91,10 @@ class DCNN(object):
         self.pretrain = args.pretrain
         self.num_pre_tasks = args.num_pre_tasks
         self.data_loader, self.num_tasks = return_data(args)
+
+    def _get_optimizer(self, lr=None):
+        if lr is None: lr = self.lr
+        return optim.Adam(self.C.parameters(), lr=lr)
 
     def model_init(self):
         self.C = Dcnn(self.input_channel, self.multi, continual=False, num_tasks=self.num_tasks)
@@ -167,6 +177,13 @@ class DCNN(object):
         min_loss_not_updated = 0
         early_stop = False
 
+        best_loss = np.inf
+        best_model = deepcopy(self.C.state_dict())
+        lr = self.lr
+        patience = self.lr_patience
+        self.C_optim = self._get_optimizer(lr)
+
+
         if self.pretrain:
             acc_log = np.zeros((12, 12), dtype=np.float32)
         else:
@@ -244,17 +261,40 @@ class DCNN(object):
                                           x=self.global_iter,
                                           y=test_acc)
 
+            if self.lr_decay:
+                eval_loss, eval_acc = self.evaluate()
 
-                if min_loss is None:
-                    min_loss = train_loss.item()
-                elif train_loss.item() < min_loss:
-                    min_loss = train_loss.item()
-                    min_loss_not_updated = 0
+                if eval_loss < best_loss:
+                    best_loss = eval_loss
+                    best_model = deepcopy(self.C.state_dict())
+                    patience = self.lr_patience
+                    print(' *', end='')
                 else:
-                    min_loss_not_updated += 1
+                    patience -= 1
+                    if patience <= 0:
+                        lr /= self.lr_factor
+                        print(' lr={:.1e}'.format(lr), end='')
+                        if lr < self.lr_min:
+                            lr = self.lr_min
+                            print()
 
-                if self.early_stopping and (min_loss_not_updated >= self.early_stopping_iter):
-                    early_stop = True
+                        patience = self.lr_patience
+                        self.optimizer = self._get_optimizer(lr)
+
+
+                # if min_loss is None:
+                #     min_loss = train_loss.item()
+                # elif train_loss.item() < min_loss:
+                #     min_loss = train_loss.item()
+                #     min_loss_not_updated = 0
+                # else:
+                #     min_loss_not_updated += 1
+
+                # if self.early_stopping and (min_loss_not_updated >= self.early_stopping_iter):
+                #     early_stop = True
+
+        if self.lr_decay:
+            self.C.load_state_dict(best_model)
 
         eval_loss, eval_acc = self.evaluate()
         print("Final test loss: {:.3f}, Test acc.: {:.3f}".format(eval_loss, eval_acc))
