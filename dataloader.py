@@ -309,11 +309,11 @@ class RadarDataset(VisionDataset):
 
         subjects_data = sum([[join(s, data_path)] for s in subjects], [])
 
-        self._activities = [[join(sd, a) for a in list_dir(join(root, sd))] for sd in subjects_data]
+        self._activities = [[join(sd, a) for a in natsort.natsorted(list_dir(join(root, sd)))] for sd in subjects_data]
 
         self._activity_images = sum(sum([
             [[(image, idx, label) for image in list_files(join(root, s, data_path, a), '.png')] for label, a in
-             enumerate(list_dir(join(root, s, data_path)))] for idx, s in enumerate(subjects)], []), [])
+             enumerate(natsort.natsorted(list_dir(join(root, s, data_path))))] for idx, s in enumerate(subjects)], []), [])
 
     def __len__(self):
         return len(self._activity_images)
