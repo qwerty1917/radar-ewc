@@ -295,11 +295,17 @@ class DCNN(object):
             else:
                 data_loader = self.data_loader['task{}'.format(task_idx)]['test']
 
-            for i, (images, sub_idxs, labels) in enumerate(data_loader):
+            for i, data in enumerate(data_loader):
+
+                if task_idx is None:
+                    images, sub_idxs, labels = data
+                    sub_idxs = cuda(sub_idxs, self.cuda)
+                    sub_idxs = sub_idxs.long()
+                else:
+                    images, labels = data
+
                 images = cuda(images, self.cuda)
                 labels = cuda(labels, self.cuda)
-                sub_idxs = cuda(sub_idxs, self.cuda)
-                sub_idxs = sub_idxs.long()
 
                 outputs = self.C(images)
 
