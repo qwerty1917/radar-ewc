@@ -149,27 +149,28 @@ class IcarlTrainer(object):
             m = self.K // self.icarl.n_classes
 
             # Reduce exemplar sets for known classes
-            self.icarl.reduce_exemplar_sets(m)
+            if self.K != 0:
+                self.icarl.reduce_exemplar_sets(m)
 
-            # Construct exemplar sets for new classes
-            for y in range(self.icarl.n_known, self.icarl.n_classes):
-                print("Constructing exemplar set for class-{}...".format(y+1))
-                y_class_dataloader, _, _ = return_data(self.args, class_range=range(y, y+1))
-                images_concat = None
-                paths_concat = None
-                for indices, images, _, paths in y_class_dataloader['train']:
-                    if images_concat is None:
-                        images_concat = images
-                        paths_concat = paths
-                    else:
-                        images_concat = np.concatenate((images_concat, images))
-                        paths_concat = np.concatenate((paths_concat, paths))
-                self.icarl.construct_exemplar_set(paths_concat, images_concat, m)
-                print("Done")
+                # Construct exemplar sets for new classes
+                for y in range(self.icarl.n_known, self.icarl.n_classes):
+                    print("Constructing exemplar set for class-{}...".format(y+1))
+                    y_class_dataloader, _, _ = return_data(self.args, class_range=range(y, y+1))
+                    images_concat = None
+                    paths_concat = None
+                    for indices, images, _, paths in y_class_dataloader['train']:
+                        if images_concat is None:
+                            images_concat = images
+                            paths_concat = paths
+                        else:
+                            images_concat = np.concatenate((images_concat, images))
+                            paths_concat = np.concatenate((paths_concat, paths))
+                    self.icarl.construct_exemplar_set(paths_concat, images_concat, m)
+                    print("Done")
 
-            for y, P_y in enumerate(self.icarl.exemplar_sets):
-                print("Exemplar set for class-{}: {}".format(y, P_y.shape))
-                # show_images(P_y[:10])
+                for y, P_y in enumerate(self.icarl.exemplar_sets):
+                    print("Exemplar set for class-{}: {}".format(y, P_y.shape))
+                    # show_images(P_y[:10])
 
             # n_known 값 업데이트
             self.icarl.n_known = self.icarl.n_classes

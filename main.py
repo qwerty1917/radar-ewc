@@ -110,8 +110,10 @@ if __name__ == "__main__":
     parser.add_argument('--gan_sample_num', default=100, type=int, help='GAN sample from visdom number')
     parser.add_argument('--gan_multi_gpu', default=False, type=str2bool, help='GAN multi GPU')
 
-    # icarl
+    # class incremental
     parser.add_argument('--class_incremental', default=False, type=str2bool, help='class incremental learning')
+
+    # icarl
     parser.add_argument('--icarl', default=False, type=str2bool, help='iCaRL')
     parser.add_argument('--icarl_K', default=20, type=int, help='total number of exemplars')
     parser.add_argument('--icarl_num_cls_per_task', default=1, type=int, help='number of added classes per task')
