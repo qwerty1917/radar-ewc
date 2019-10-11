@@ -28,9 +28,9 @@ class Icarl(nn.Module):
 
         self.bn = nn.BatchNorm1d(self.feature_size, momentum=0.01)
         self.ReLU = nn.ReLU()
-        self.fc = nn.Linear(self.feature_size, 2, bias=False)
+        self.fc = nn.Linear(self.feature_size, 1, bias=False)
 
-        self.n_classes = 2
+        self.n_classes = 1
         self.n_known = 0
 
         # List containing exemplar_sets
