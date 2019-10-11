@@ -115,6 +115,7 @@ if __name__ == "__main__":
 
     # icarl
     parser.add_argument('--icarl', default=False, type=str2bool, help='iCaRL')
+    parser.add_argument('--icarl_fixed_rep', default=False, type=str2bool, help='fixed representation')
     parser.add_argument('--icarl_K', default=20, type=int, help='total number of exemplars')
     parser.add_argument('--icarl_num_cls_per_task', default=1, type=int, help='number of added classes per task')
     parser.add_argument('--icarl_feature_size', default=128, type=int, help='feature extractor output size')

@@ -207,6 +207,22 @@ class Icarl(nn.Module):
                     loss += dist_loss
 
                 loss.backward()
+
+                if self.args.icarl_fixed_rep and current_class_count > 2:
+                    if epoch_i == 0:
+                        for param in self.feature_extractor.fc_layers[-1].parameters():
+                            param.requires_grad = True
+
+                    else:
+                        for param in self.feature_extractor.fc_layers[-1].parameters():
+                            param.requires_grad = False
+
+                    fc_grad = self.fc.weight.grad
+                    mask = torch.ones_like(fc_grad)
+                    mask[-1:,:] = 0
+                    fc_grad *= mask
+                    self.fc.weight.grad = fc_grad
+
                 optimizer.step()
 
                 if (i + 1) % 5 == 0:
