@@ -165,7 +165,7 @@ def make_log_name(args):
         log_name += '_K{}_num_cls_per_task{}_feature_size{}_fixed_rep{}'.format(args.icarl_K,
                                                                                 args.icarl_num_cls_per_task,
                                                                                 args.icarl_feature_size,
-                                                                                args.icarl_fixd_rep)
+                                                                                args.icarl_fixed_rep)
     else:
         log_name += '_fine'
 
