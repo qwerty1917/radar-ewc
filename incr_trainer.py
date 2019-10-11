@@ -175,6 +175,7 @@ class IcarlTrainer(object):
             # n_known 값 업데이트
             self.icarl.n_known = self.icarl.n_classes
             print("iCaRL classes: {}".format(self.icarl.n_known))
+            print("iCaRL model last nodes: {}".format(self.icarl.fc.out_features))
 
             # print train_set_accuracy
             total = 0.0
