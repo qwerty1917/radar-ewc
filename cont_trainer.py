@@ -36,6 +36,7 @@ class cont_DCNN(object):
 
         # pretrain
         self.num_pre_tasks = args.num_pre_tasks
+        self.load_pretrain = args.load_pretrain
         self.model_seed = args.model_seed
 
         set_seed(self.model_seed)
@@ -97,7 +98,6 @@ class cont_DCNN(object):
         # Continual Learning
         self.continual = args.continual
         self.lamb = args.lamb
-        self.load_pretrain = args.load_pretrain
 
         # EWC
         self.online = True if self.continual == 'ewc_online' else False
