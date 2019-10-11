@@ -299,10 +299,10 @@ class RadarDataset(VisionDataset):
         self.train = train
 
         subjects = list_dir(root)
+        if not subject_shuffle:
+            subjects = natsort.natsorted(subjects)
 
         if pretrain and (num_pre_tasks !=0):
-            if not subject_shuffle:
-                subjects = natsort.natsorted(subjects)
             subjects = subjects[:num_pre_tasks]
 
         data_path = self._get_target_folder()
