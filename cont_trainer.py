@@ -34,7 +34,11 @@ class cont_DCNN(object):
     def __init__(self, args):
         self.args = args
 
-        set_seed(args.model_seed)
+        # pretrain
+        self.num_pre_tasks = args.num_pre_tasks
+        self.model_seed = args.model_seed
+
+        set_seed(self.model_seed)
 
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
@@ -52,7 +56,7 @@ class cont_DCNN(object):
         # Optimization
         self.epoch = args.epoch
         self.epoch_i = 0
-        self.task_idx = 0
+        self.task_idx = self.num_pre_tasks
         self.train_batch_size = args.train_batch_size
         self.lr = args.lr
 
@@ -84,6 +88,7 @@ class cont_DCNN(object):
         self.image_size = args.image_size
         self.multi = args.multi
         self.num_tasks = args.num_tasks
+        self.train_tasks = self.num_tasks - self.num_pre_tasks
         self.model_init()
 
         # Dataset
@@ -92,6 +97,7 @@ class cont_DCNN(object):
         # Continual Learning
         self.continual = args.continual
         self.lamb = args.lamb
+        self.load_pretrain = args.load_pretrain
 
         # EWC
         self.online = True if self.continual == 'ewc_online' else False
@@ -129,6 +135,12 @@ class cont_DCNN(object):
         if self.load_ckpt:
             self.load_checkpoint()
 
+        if self.load_pretrain:
+            param_loaded = torch.load(
+                './trained_models/20191008/none/subject_m_seed{}_s_seed1_window3_lamb0.0_pre_{}tasks_epochs100.pt'
+                    .format(self.model_seed, self.num_pre_tasks))
+            self.C.load_state_dict(param_loaded)
+
     def visualization_init(self):
         if self.reset_env:
             self.delete_logs()
@@ -157,7 +169,7 @@ class cont_DCNN(object):
     def save_checkpoint(self, filename='ckpt_cnn.tar'):
         # TODO: CNN save_checkpoint
         model_states = {'C': self.C.state_dict()}
-        optim_states = {'C_optim':self.C_optim.state_dict()}
+        optim_states = {'C_optim': self.C_optim.state_dict()}
         states = {'args': self.args,
                   'epoch': self.epoch,
                   'epoch_i': self.epoch_i,
@@ -192,7 +204,7 @@ class cont_DCNN(object):
         min_loss_not_updated = 0
         early_stop = False
 
-        acc_log = np.zeros((self.num_tasks, self.num_tasks), dtype=np.float32)
+        acc_log = np.zeros((self.train_tasks, self.num_tasks), dtype=np.float32)
 
         if self.continual == 'si':
             # Register starting param-values (needed for "intelligent synapses").
@@ -272,34 +284,38 @@ class cont_DCNN(object):
 
                             self.log_csv(self.task_idx, self.epoch_i, self.global_iter, train_loss.item(), train_acc,
                                          test_loss.item(), test_acc, filename=self.log_name)
-                            self.save_checkpoint(filename=self.log_name+'_ckpt.tar')
+                            self.save_checkpoint(filename=self.log_name + '_ckpt.tar')
 
                             # visdom
                             if self.visdom:
                                 self.plotter.plot(var_name='loss',
                                                   split_name='train',
-                                                  title_name=self.date + ' Current task Loss' + ' lamb{}'.format(self.lamb),
+                                                  title_name=self.date + ' Current task Loss' + ' lamb{}'.format(
+                                                      self.lamb),
                                                   x=self.global_iter,
                                                   y=train_loss.item())
                                 self.plotter.plot(var_name='loss',
                                                   split_name='test',
-                                                  title_name=self.date + ' Current task Loss' + ' lamb{}'.format(self.lamb),
+                                                  title_name=self.date + ' Current task Loss' + ' lamb{}'.format(
+                                                      self.lamb),
                                                   x=self.global_iter,
                                                   y=test_loss.item())
                                 self.plotter.plot(var_name='acc.',
                                                   split_name='train',
-                                                  title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(self.lamb),
+                                                  title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(
+                                                      self.lamb),
                                                   x=self.global_iter,
                                                   y=train_acc)
                                 self.plotter.plot(var_name='acc.',
                                                   split_name='test',
-                                                  title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(self.lamb),
+                                                  title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(
+                                                      self.lamb),
                                                   x=self.global_iter,
                                                   y=test_acc)
 
                                 task_loss_sum = 0
                                 task_acc_sum = 0
-                                for old_task_idx in range(self.task_idx+1):
+                                for old_task_idx in range(self.task_idx + 1):
                                     eval_loss, eval_acc = self.evaluate(old_task_idx)
                                     if not isinstance(eval_loss, float):
                                         eval_loss = eval_loss.item()
@@ -307,28 +323,31 @@ class cont_DCNN(object):
                                     task_loss_sum += eval_loss
                                     task_acc_sum += eval_acc
                                     self.plotter.plot(var_name='task acc.',
-                                                      split_name='task {}'.format(old_task_idx+1),
-                                                      title_name=self.date + ' Task Accuracy' + ' lamb{}'.format(self.lamb),
+                                                      split_name='task {}'.format(old_task_idx + 1),
+                                                      title_name=self.date + ' Task Accuracy' + ' lamb{}'.format(
+                                                          self.lamb),
                                                       x=self.global_iter,
                                                       y=eval_acc)
 
                                     self.plotter.plot(var_name='task loss',
-                                                      split_name='task {}'.format(old_task_idx+1),
+                                                      split_name='task {}'.format(old_task_idx + 1),
                                                       title_name=self.date + ' Task Loss' + ' lamb{}'.format(self.lamb),
                                                       x=self.global_iter,
                                                       y=eval_loss)
 
                                 self.plotter.plot(var_name='task average acc.',
-                                                  split_name='until task {}'.format(self.task_idx+1),
-                                                  title_name = self.date + ' Task average acc.' + ' lamb{}'.format(self.lamb),
+                                                  split_name='until task {}'.format(self.task_idx + 1),
+                                                  title_name=self.date + ' Task average acc.' + ' lamb{}'.format(
+                                                      self.lamb),
                                                   x=self.global_iter,
-                                                  y=task_acc_sum/(self.task_idx+1))
+                                                  y=task_acc_sum / (self.task_idx + 1))
 
                                 self.plotter.plot(var_name='task average loss',
-                                                  split_name='until task {}'.format(self.task_idx+1),
-                                                  title_name = self.date + ' Task average loss' + ' lamb{}'.format(self.lamb),
+                                                  split_name='until task {}'.format(self.task_idx + 1),
+                                                  title_name=self.date + ' Task average loss' + ' lamb{}'.format(
+                                                      self.lamb),
                                                   x=self.global_iter,
-                                                  y=task_loss_sum/(self.task_idx+1))
+                                                  y=task_loss_sum / (self.task_idx + 1))
 
                 if self.lr_decay:
                     eval_loss, eval_acc = self.evaluate(self.task_idx)
@@ -364,10 +383,11 @@ class cont_DCNN(object):
             if self.lr_decay:
                 self.C.load_state_dict(best_model)
 
-            for old_task_idx in range(self.task_idx+1):
+            # for old_task_idx in range(self.task_idx + 1):
+            for t_idx in range(self.num_tasks):
                 eval_loss, eval_acc = self.evaluate(old_task_idx)
-                print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(old_task_idx + 1, eval_loss, eval_acc))
-                acc_log[self.task_idx, old_task_idx] = eval_acc
+                print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(t_idx + 1, eval_loss, eval_acc))
+                acc_log[self.task_idx-self.num_pre_tasks, t_idx] = eval_acc
 
             np.savetxt(os.path.join(self.eval_dir, self.log_name) + '.txt', acc_log, '%.4f')
             print('Log saved at ' + os.path.join(self.eval_dir, self.log_name))
@@ -377,12 +397,12 @@ class cont_DCNN(object):
             if self.continual == 'ewc' or self.continual == 'ewc_online':
                 fisher_mat = self.estimate_fisher(data_loader, self.task_idx)
                 self.store_fisher_n_params(fisher_mat)
-                print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
+                print('Fisher matrix for task {} stored successfully!'.format(self.task_idx + 1))
 
             elif self.continual == 'hat_ewc':
                 fisher_mat = self.estimate_fisher(data_loader, self.task_idx)
                 self.store_fisher_n_params_hat_ver(fisher_mat)
-                print('Fisher matrix for task {} stored successfully!'.format(self.task_idx+1))
+                print('Fisher matrix for task {} stored successfully!'.format(self.task_idx + 1))
 
             # SI: calculate and update the normalized path integral
             elif self.continual == 'si':
@@ -391,7 +411,7 @@ class cont_DCNN(object):
 
             elif self.continual == 'l2':
                 self.store_params()
-                print('Parameters for task {} stored successfully!'.format(self.task_idx+1))
+                print('Parameters for task {} stored successfully!'.format(self.task_idx + 1))
 
             self.task_idx += 1
 
@@ -402,7 +422,8 @@ class cont_DCNN(object):
         else:
             file = open(file_path, 'a', encoding='utf-8')
         wr = csv.writer(file)
-        wr.writerow([task, g_iter, epoch, round(train_loss, 4), round(train_acc, 4), round(test_loss, 4), round(test_acc, 4)])
+        wr.writerow(
+            [task, g_iter, epoch, round(train_loss, 4), round(train_acc, 4), round(test_loss, 4), round(test_acc, 4)])
         file.close()
 
     def evaluate(self, task_idx):
@@ -433,8 +454,8 @@ class cont_DCNN(object):
                 # print("##### Env name: {} #####".format(env_name))
 
                 # print("Epoch: {}, iter: {}, test loss: {:.3f}, Test acc.: {:.3f}".format(self.epoch_i, self.global_iter, test_loss, eval_acc))
-            eval_acc = eval_acc / (i+1)
-            test_loss = test_loss / (i+1)
+            eval_acc = eval_acc / (i + 1)
+            test_loss = test_loss / (i + 1)
         # reset model to train mode
         self.set_mode('train')
         return test_loss, eval_acc
@@ -444,7 +465,7 @@ class cont_DCNN(object):
 
         # Regularization for all previous tasks
         reg_loss = 0.
-        if self.continual == 'ewc' or self.continual =='ewc_online':
+        if self.continual == 'ewc' or self.continual == 'ewc_online':
             reg_loss = self.ewc_loss()
         elif self.continual == 'hat_ewc':
             reg_loss = self.ewc_loss_hat_ver()
@@ -495,7 +516,7 @@ class cont_DCNN(object):
             for n, p in self.C.named_parameters():
                 if p.requires_grad:
                     n = n.replace('.', '__')
-                    est_fisher_info[n] /= (i+1)
+                    est_fisher_info[n] /= (i + 1)
 
         self.set_mode('train')
 
@@ -522,13 +543,14 @@ class cont_DCNN(object):
                 n = n.replace('.', '__')
                 # -mode (=MAP parameter estimate)
                 self.C.register_buffer('{}_EWC_prev_task{}'.format(n, "" if self.online else self.task_count + 1),
-                                     p.detach().clone())
+                                       p.detach().clone())
                 # -precision (approximated by diagonal Fisher Information matrix)
                 if self.online and self.task_count == 1:
                     existing_values = getattr(self.C, '{}_EWC_estimated_fisher'.format(n))
                     fisher[n] += self.gamma * existing_values
-                self.C.register_buffer('{}_EWC_estimated_fisher{}'.format(n, "" if self.online else self.task_count + 1),
-                                     fisher[n])
+                self.C.register_buffer(
+                    '{}_EWC_estimated_fisher{}'.format(n, "" if self.online else self.task_count + 1),
+                    fisher[n])
 
         # If "offline EWC", increase task-count (for "online EWC", set it to 1 to indicate EWC-loss can be calculated)
         self.task_count = 1 if self.online else self.task_count + 1
@@ -543,9 +565,9 @@ class cont_DCNN(object):
                 self.C.register_buffer('{}_EWC_prev_task'.format(n), p.detach().clone())
                 # -precision (approximated by diagonal Fisher Information matrix)
 
-                if self.task_idx >0:
+                if self.task_idx > 0:
                     existing_values = getattr(self.C, '{}_EWC_estimated_fisher'.format(n))
-                    fisher[n] = (fisher[n] + self.task_idx * existing_values)/(self.task_idx+1)
+                    fisher[n] = (fisher[n] + self.task_idx * existing_values) / (self.task_idx + 1)
 
                 self.C.register_buffer('{}_EWC_estimated_fisher'.format(n), fisher[n])
 
@@ -568,7 +590,7 @@ class cont_DCNN(object):
                         # Calculate EWC-loss
                         losses += (fisher * (p - mean).pow(2)).sum()
             # Sum EWC-loss from all parameters (and from all tasks, if "offline EWC")
-            return losses/2.
+            return losses / 2.
         else:
             # EWC-loss is 0 if there are no stored mode and precision yet
             return 0.
@@ -588,7 +610,7 @@ class cont_DCNN(object):
                     # Calculate EWC-loss
                     losses += (fisher * (p - mean).pow(2)).sum()
             # Sum EWC-loss from all parameters (and from all tasks, if "offline EWC")
-            return losses/2.
+            return losses / 2.
         else:
             # EWC-loss is 0 if there are no stored mode and precision yet
             return 0.
@@ -633,7 +655,7 @@ class cont_DCNN(object):
                     omega = getattr(self.C, '{}_SI_omega'.format(n))
                     # Calculate SI's surrogate loss, sum over all parameters
                     losses += (omega * (p - prev_values).pow(2)).sum()
-            return losses/2.
+            return losses / 2.
         else:
             # SI-loss is 0 if there is no stored omega yet
             return 0.
@@ -650,7 +672,7 @@ class cont_DCNN(object):
                 n = n.replace('.', '__')
                 # -mode (=MAP parameter estimate)
                 self.C.register_buffer('{}_prev_task{}'.format(n, self.task_count + 1),
-                                     p.detach().clone())
+                                       p.detach().clone())
 
         self.task_count = self.task_count + 1
 
@@ -670,7 +692,7 @@ class cont_DCNN(object):
                         # Calculate EWC-loss
                         losses += (p - mean).pow(2).sum()
             # Sum EWC-loss from all parameters (and from all tasks, if "offline EWC")
-            return losses/2.
+            return losses / 2.
         else:
             # EWC-loss is 0 if there are no stored mode and precision yet
             return 0.

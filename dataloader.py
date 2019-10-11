@@ -294,13 +294,13 @@ class RandomNoise(object):
 
 class RadarDataset(VisionDataset):
     def __init__(self, root, train=True, transform=None, target_transform=None,
-                 pretrain=False, num_pre_tasks=None, subject_shuffle=True):
+                 pretrain=False, num_pre_tasks=0, subject_shuffle=True):
         super(RadarDataset, self).__init__(root, transform=transform, target_transform=target_transform)
         self.train = train
 
         subjects = list_dir(root)
 
-        if pretrain and (num_pre_tasks is not None):
+        if pretrain and (num_pre_tasks !=0):
             if not subject_shuffle:
                 subjects = natsort.natsorted(subjects)
             subjects = subjects[:num_pre_tasks]

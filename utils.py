@@ -161,9 +161,8 @@ def make_log_name(args):
     elif args.continual == 'ucl':
         log_name += '_alpha{}_ratio{}_lr-rho{}'.format(args.alpha, args.ratio, args.lr_rho)
 
-    elif args.continual == 'none':
-        if args.pretrain:
-            log_name += '_pre_{}tasks'.format(args.num_pre_tasks)
+    if args.pretrain:
+        log_name += '_pre_{}tasks'.format(args.num_pre_tasks)
 
     log_name += '_epochs{}'.format(args.epoch)
 
