@@ -299,10 +299,10 @@ class DCNN(object):
         eval_loss, eval_acc = self.evaluate()
         print("Final test loss: {:.3f}, Test acc.: {:.3f}".format(eval_loss, eval_acc))
         if self.pretrain:
-            for task_idx in range(12):
-                _, eval_acc = self.evaluate(task_idx)
-                print("Task{} - Test acc.: {:.3f}".format(task_idx + 1, eval_acc))
-                acc_log[self.task_idx, task_idx] = eval_acc
+            for t_idx in range(12):
+                _, eval_acc = self.evaluate(t_idx)
+                print("Task{} - Test acc.: {:.3f}".format(t_idx + 1, eval_acc))
+                acc_log[self.task_idx, t_idx] = eval_acc
 
         else:
             acc_log[self.task_idx, self.task_idx] = eval_acc

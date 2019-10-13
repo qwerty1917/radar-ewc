@@ -117,57 +117,37 @@ def return_data(args):
     if args.subject_shuffle:
         random.shuffle(tasks)
         print(tasks)
-        for i, task in enumerate(tasks):
-            if i >= num_tasks:
-                break
-            data_loader['task{}'.format(i)] = {}
 
+    for i, task in enumerate(tasks):
+        if i >= num_tasks:
+            break
+        data_loader['task{}'.format(i)] = {}
+
+        if args.subject_shuffle:
             target_subject = join(root, task)
-
-            train_data = ImageFolder(root=target_subject + '/train', transform=transform)
-            test_data = ImageFolder(root=target_subject + '/test', transform=transform)
-
-            train_imagefolders.append(train_data)
-            test_imagefolders.append(test_data)
-
-    else:
-        for i in range(num_tasks):
-
-            data_loader['task{}'.format(i)] = {}
-
+        else:
             target_subject = join(root, 'Subject{}'.format(i+1))
 
-            train_data = ImageFolder(root=target_subject + '/train', transform=transform)
-            test_data = ImageFolder(root=target_subject + '/test', transform=transform)
+        train_data = ImageFolder(root=target_subject + '/train', transform=transform)
+        test_data = ImageFolder(root=target_subject + '/test', transform=transform)
 
-            train_imagefolders.append(train_data)
-            test_imagefolders.append(test_data)
+        train_imagefolders.append(train_data)
+        test_imagefolders.append(test_data)
 
-    if args.continual != 'none':
-        for i in range(num_tasks):
+        train_loader = DataLoader(train_imagefolders[i], batch_size=train_batch_size,
+                                  shuffle=True, num_workers=num_workers,
+                                  pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
+        test_loader = DataLoader(test_imagefolders[i], batch_size=test_batch_size,
+                                 shuffle=True, num_workers=num_workers,
+                                 pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
 
-            train_loader = DataLoader(train_imagefolders[i], batch_size=train_batch_size,
-                                      shuffle=True, num_workers=num_workers,
-                                      pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
-            test_loader = DataLoader(test_imagefolders[i], batch_size=test_batch_size,
-                                     shuffle=True, num_workers=num_workers,
-                                     pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
+        data_loader['task{}'.format(i)]['train'] = train_loader
+        data_loader['task{}'.format(i)]['test'] = test_loader
 
-            data_loader['task{}'.format(i)]['train'] = train_loader
-            data_loader['task{}'.format(i)]['test'] = test_loader
-    else:
-        # for non-cont trainer
-        if args.pretrain:
-            # To prepare evaluate dataset for each task
-            for i in range(num_tasks):
-                test_loader = DataLoader(test_imagefolders[i], batch_size=test_batch_size,
-                                         shuffle=True, num_workers=num_workers,
-                                         pin_memory=True, drop_last=True, worker_init_fn=_init_fn)
-
-                data_loader['task{}'.format(i)]['test'] = test_loader
 
             # if args.multi:
 
+    if args.continual == 'none':
         train_dataset = RadarDataset(root, train=True, transform=transform, pretrain=args.pretrain,
                                      num_pre_tasks=args.num_pre_tasks, subject_shuffle=args.subject_shuffle)
         test_dataset = RadarDataset(root, train=False, transform=transform, pretrain=args.pretrain,
