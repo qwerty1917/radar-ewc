@@ -38,6 +38,7 @@ class cont_DCNN(object):
         self.num_pre_tasks = args.num_pre_tasks
         self.load_pretrain = args.load_pretrain
         self.model_seed = args.model_seed
+        self.pre_reg_param = args.pre_reg_param
 
         set_seed(self.model_seed)
 
@@ -82,16 +83,6 @@ class cont_DCNN(object):
         self.summary_dir = Path("./tensorboard_logs/").joinpath(self.env_name)
         self.visualization_init()
 
-        # Network
-        self.cnn_type = args.cnn_type
-        self.load_ckpt = args.load_ckpt
-        self.input_channel = args.channel
-        self.image_size = args.image_size
-        self.multi = args.multi
-        self.num_tasks = args.num_tasks
-        self.train_tasks = self.num_tasks - self.num_pre_tasks
-        self.model_init()
-
         # Dataset
         self.data_loader, self.num_tasks = return_data(args)
 
@@ -107,6 +98,16 @@ class cont_DCNN(object):
 
         # SI
         self.si_eps = args.si_eps
+
+        # Network
+        self.cnn_type = args.cnn_type
+        self.load_ckpt = args.load_ckpt
+        self.input_channel = args.channel
+        self.image_size = args.image_size
+        self.multi = args.multi
+        self.num_tasks = args.num_tasks
+        self.train_tasks = self.num_tasks - self.num_pre_tasks
+        self.model_init()
 
         # if self.ewc and not self.continual:
         #     raise ValueError("Cannot set EWC with no continual setting")
@@ -140,6 +141,26 @@ class cont_DCNN(object):
                 './trained_models/20191008/none/subject_m_seed{}_s_seed1_window3_lamb0.0_pre_{}tasks_epochs100.pt'
                     .format(self.model_seed, self.num_pre_tasks))
             self.C.load_state_dict(param_loaded)
+
+            if self.pre_reg_param:
+                if self.continual == 'ewc' or self.continual == 'ewc_online':
+                    fisher_mat = self.estimate_fisher(self.data_loader, self.task_idx)
+                    self.store_fisher_n_params(fisher_mat)
+                    print('Fisher matrix for pretrained task stored successfully!')
+
+                elif self.continual == 'hat_ewc':
+                    fisher_mat = self.estimate_fisher(self.data_loader, self.task_idx)
+                    self.store_fisher_n_params_hat_ver(fisher_mat)
+                    print('Fisher matrix for pretrained task stored successfully!')
+
+                elif self.continual == 'l2':
+                    self.store_params()
+                    print('Parameters for pretrained task stored successfully!')
+
+                elif self.continual == 'mas':
+                    self.update_mas_omega(self.data_loader, self.task_idx)
+                    print('Omega and params for pretrained task stored successfully!')
+
 
     def visualization_init(self):
         if self.reset_env:
@@ -413,6 +434,9 @@ class cont_DCNN(object):
                 self.store_params()
                 print('Parameters for task {} stored successfully!'.format(self.task_idx + 1))
 
+            elif self.continual == 'mas':
+                self.update_mas_omega(data_loader, self.task_idx)
+
             self.task_idx += 1
 
     def log_csv(self, task, epoch, g_iter, train_loss, train_acc, test_loss, test_acc, filename='log.csv'):
@@ -473,6 +497,8 @@ class cont_DCNN(object):
             reg_loss = self.surrogate_loss()
         elif self.continual == 'l2':
             reg_loss = self.l2_loss()
+        elif self.continual == 'mas':
+            reg_loss = self.mas_loss()
 
         return loss + self.lamb * reg_loss
 
@@ -695,4 +721,68 @@ class cont_DCNN(object):
             return losses / 2.
         else:
             # EWC-loss is 0 if there are no stored mode and precision yet
+            return 0.
+
+    # ----------------- MAS-specific functions -----------------#
+
+    def update_mas_omega(self, data_loader, task_idx):
+
+        self.set_mode('eval')
+
+        # Prepare <dict> to store estimated Fisher Information matrix
+        est_omega = {}
+        for n, p in self.C.named_parameters():
+            if p.requires_grad:
+                n = n.replace('.', '__')
+                est_omega[n] = p.detach().clone().zero_()
+
+                self.C.register_buffer('{}_MAS_prev_task'.format(n), p.detach().clone())
+
+        for i, (images, labels) in enumerate(data_loader):
+            images = cuda(images, self.cuda)
+
+            # Forward
+            if self.multi:
+                outputs = self.C(images, task_idx)
+            else:
+                outputs = self.C(images)
+
+            loss = torch.sum(outputs.norm(2, dim=-1))
+            self.C_optim.zero_grad()
+            loss.backward()
+
+            # Square gradients and keep running sum
+            for n, p in self.C.named_parameters():
+                if p.requires_grad:
+                    n = n.replace('.', '__')
+                    if p.grad is not None:
+                        est_omega[n] += p.grad.detach().abs()
+
+        with torch.no_grad():
+            for n, p in self.C.named_parameters():
+                if p.requires_grad:
+                    n = n.replace('.', '__')
+                    est_omega[n] /= (i + 1)
+
+                    self.C.register_buffer('{}_MAS_omega'.format(n), est_omega[n])
+
+        self.set_mode('train')
+
+        self.task_count = 1
+
+    def mas_loss(self):
+        '''Calculate SI's surrogate loss.'''
+        if self.task_count > 0:
+            losses = 0
+            for n, p in self.C.named_parameters():
+                if p.requires_grad:
+                    # Retrieve previous parameter values and their normalized path integral (i.e., omega)
+                    n = n.replace('.', '__')
+                    prev_values = getattr(self.C, '{}_MAS_prev_task'.format(n))
+                    omega = getattr(self.C, '{}_MAS_omega'.format(n))
+                    # Calculate SI's surrogate loss, sum over all parameters
+                    losses += (omega * (p - prev_values).pow(2)).sum()
+            return losses / 2.
+        else:
+            # SI-loss is 0 if there is no stored omega yet
             return 0.

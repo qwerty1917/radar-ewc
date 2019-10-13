@@ -147,7 +147,7 @@ def return_data(args):
 
             # if args.multi:
 
-    if args.continual == 'none':
+    if (args.continual == 'none') or (args.load_pretrain and args.pre_reg_param):
         train_dataset = RadarDataset(root, train=True, transform=transform, pretrain=args.pretrain,
                                      num_pre_tasks=args.num_pre_tasks, subject_shuffle=args.subject_shuffle)
         test_dataset = RadarDataset(root, train=False, transform=transform, pretrain=args.pretrain,
@@ -158,6 +158,8 @@ def return_data(args):
         data_loader['test'] = DataLoader(test_dataset, batch_size=test_batch_size, shuffle=True,
                                          num_workers=num_workers, pin_memory=True,
                                          drop_last=True, worker_init_fn=_init_fn)
+
+
         # else:
         #
         #     train_data_concat = ConcatDataset(train_imagefolders)
