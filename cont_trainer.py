@@ -502,11 +502,11 @@ class cont_DCNN(object):
 
         return loss + self.lamb * reg_loss
 
-    # ----------------- EWC-specifc functions -----------------#
+    # ----------------- EWC-specific functions -----------------#
 
     def estimate_fisher(self, data_loader, task_idx):
         '''After completing training on a task, estimate diagonal of Fisher Information matrix.
-        [data_loader]:          <DataLoadert> to be used to estimate FI-matrix'''
+        [data_loader]:          <DataLoader> to be used to estimate FI-matrix'''
 
         self.set_mode('eval')
 
@@ -591,9 +591,10 @@ class cont_DCNN(object):
                 self.C.register_buffer('{}_EWC_prev_task'.format(n), p.detach().clone())
                 # -precision (approximated by diagonal Fisher Information matrix)
 
-                if self.task_idx > 0:
+                if self.task_count > 0:
                     existing_values = getattr(self.C, '{}_EWC_estimated_fisher'.format(n))
-                    fisher[n] = (fisher[n] + self.task_idx * existing_values) / (self.task_idx + 1)
+                    fisher[n] = (fisher[n] + (self.task_idx - self.num_pre_tasks) * existing_values) / \
+                                ((self.task_idx - self.num_pre_tasks) + 1)
 
                 self.C.register_buffer('{}_EWC_estimated_fisher'.format(n), fisher[n])
 
