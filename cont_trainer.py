@@ -144,12 +144,12 @@ class cont_DCNN(object):
 
             if self.pre_reg_param:
                 if self.continual == 'ewc' or self.continual == 'ewc_online':
-                    fisher_mat = self.estimate_fisher(self.data_loader, self.task_idx)
+                    fisher_mat = self.estimate_fisher(self.data_loader['train'], self.task_idx)
                     self.store_fisher_n_params(fisher_mat)
                     print('Fisher matrix for pretrained task stored successfully!')
 
                 elif self.continual == 'hat_ewc':
-                    fisher_mat = self.estimate_fisher(self.data_loader, self.task_idx)
+                    fisher_mat = self.estimate_fisher(self.data_loader['train'], self.task_idx)
                     self.store_fisher_n_params_hat_ver(fisher_mat)
                     print('Fisher matrix for pretrained task stored successfully!')
 
@@ -158,7 +158,7 @@ class cont_DCNN(object):
                     print('Parameters for pretrained task stored successfully!')
 
                 elif self.continual == 'mas':
-                    self.update_mas_omega(self.data_loader, self.task_idx)
+                    self.update_mas_omega(self.data_loader['train'], self.task_idx)
                     print('Omega and params for pretrained task stored successfully!')
 
 
@@ -517,7 +517,12 @@ class cont_DCNN(object):
                 n = n.replace('.', '__')
                 est_fisher_info[n] = p.detach().clone().zero_()
 
-        for i, (images, labels) in enumerate(data_loader):
+        for i, data in enumerate(data_loader):
+            if self.pre_reg_param:
+                images, _, labels = data
+            else:
+                images, labels = data
+
             images = cuda(images, self.cuda)
             labels = cuda(labels, self.cuda)
 
@@ -739,7 +744,13 @@ class cont_DCNN(object):
 
                 self.C.register_buffer('{}_MAS_prev_task'.format(n), p.detach().clone())
 
-        for i, (images, labels) in enumerate(data_loader):
+        for i, data in enumerate(data_loader):
+
+            if self.pre_reg_param:
+                images, _, _ = data
+            else:
+                images, _ = data
+
             images = cuda(images, self.cuda)
 
             # Forward
