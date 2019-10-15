@@ -232,7 +232,7 @@ class Icarl(nn.Module):
                         dist_loss, self.n_known, len(new_classes)
                     ))
 
-                    if self.args.visdom:
+                    if self.args.visdom and self.args.icarl_K==0:
                         total = 0.0
                         correct = 0.0
                         for indices, images, labels, _ in train_loader:
