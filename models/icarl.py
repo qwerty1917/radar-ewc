@@ -42,7 +42,7 @@ class Icarl(nn.Module):
         # Learning method
         self.cls_loss = nn.CrossEntropyLoss()
         self.dist_loss = nn.BCELoss()
-        self.optimizer = optim.Adam(self.parameters(), lr=args.lr, weight_decay=0.00001)
+        self.optimizer = optim.Adam(self.parameters(), lr=args.lr)
 
         # Means of exemplars
         self.compute_means = True
@@ -66,7 +66,7 @@ class Icarl(nn.Module):
         self.fc.weight.data[:out_features] = weight
         self.n_classes += n
 
-    def classify(self, x, transform):
+    def classify(self, x, transform=None):
         if self.args.icarl_K == 0:
             images = cuda(Variable(x), self.args.cuda)
             outputs = F.sigmoid(self.forward(images))
@@ -153,7 +153,7 @@ class Icarl(nn.Module):
     def _init_fn(self, worker_id):
         np.random.seed(int(self.args.seed))
 
-    def update_representation(self, dataset, current_class_count):
+    def update_representation(self, dataset, current_class_count, train_loader, test_loader, line_plotter):
         self.compute_means = True
 
         # Increment number of weights in final fc layer
@@ -184,6 +184,7 @@ class Icarl(nn.Module):
         # Run network training
         optimizer = self.optimizer
 
+        iteration = 0
         for epoch_i in range(self.args.epoch):
             for i, (indices, images, labels, _) in enumerate(loader):
                 images = cuda(Variable(images), self.args.cuda)
@@ -194,7 +195,7 @@ class Icarl(nn.Module):
                 g = self.forward(images)
 
                 # Classification loss for new classes
-                loss = self.cls_loss(g, labels.type(torch.long))
+                train_loss = self.cls_loss(g, labels.type(torch.long))
                 # loss = loss / len(range(self.n_known, self.n_classes))
 
                 dist_loss = None
@@ -204,9 +205,9 @@ class Icarl(nn.Module):
                     q_i = q[indices]
                     dist_loss = sum(self.dist_loss(g[:, y], q_i[:, y]) for y in range(self.n_known))
                     # dist_loss = dist_loss / self.n_known
-                    loss += dist_loss
+                    train_loss += dist_loss
 
-                loss.backward()
+                train_loss.backward()
 
                 if self.args.icarl_fixed_rep and current_class_count > 2:
                     if epoch_i == 0:
@@ -225,8 +226,44 @@ class Icarl(nn.Module):
 
                 optimizer.step()
 
+                total = 0.0
+                correct = 0.0
+                for indices, images, labels, _ in train_loader:
+                    images = cuda(Variable(images), self.args.cuda)
+                    preds = self.classify(images)
+                    total += labels.size(0)
+                    correct += (preds.data.cpu() == labels.data.cpu()).sum()
+                train_acc = float(correct) / float(total)
+
+                total = 0.0
+                correct = 0.0
+                for indices, images, labels, _ in test_loader:
+                    images = cuda(Variable(images), self.args.cuda)
+                    preds = self.classify(images)
+                    total += labels.size(0)
+                    correct += (preds.data.cpu() == labels.data.cpu()).sum()
+                test_acc = float(correct) / float(total)
+
                 if (i + 1) % 5 == 0:
-                    print('Epoch [{}/{}], Iter [{}/{}] Loss: {}, Dist_loss: {}, known class: {}, new class: {}'.format(
-                        epoch_i + 1, self.args.epoch, i + 1, len(dataset) // self.args.train_batch_size, loss.item(),
-                        dist_loss, self.n_known, len(new_classes)
+                    print('Epoch [{}/{}], Iter [{}/{}] Loss: {}, Dist_loss: {}, Train acc: {}, Test acc: {}, known class: {}, new class: {}'.format(
+                        epoch_i + 1, self.args.epoch, i + 1, len(dataset) // self.args.train_batch_size, train_loss.item(),
+                        dist_loss, round(train_acc, 4), round(test_acc, 4), self.n_known, len(new_classes)
                     ))
+
+                if self.args.visdom:
+                    line_plotter.plot(var_name='loss',
+                                      split_name='train {} class'.format(current_class_count),
+                                      title_name=self.args.date + ' Task Loss',
+                                      x=iteration,
+                                      y=train_loss.item())
+                    line_plotter.plot(var_name='acc.',
+                                      split_name='train {} class'.format(current_class_count),
+                                      title_name=self.args.date + ' Task Accuracy',
+                                      x=iteration,
+                                      y=train_acc)
+                    line_plotter.plot(var_name='acc.',
+                                      split_name='test {} class'.format(current_class_count),
+                                      title_name=self.args.date + ' Task Accuracy',
+                                      x=iteration,
+                                      y=test_acc)
+                iteration += 1

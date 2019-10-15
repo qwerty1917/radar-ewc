@@ -145,7 +145,11 @@ class IcarlTrainer(object):
             test_set = test_loader.dataset
 
             # Update representation via BackProp
-            self.icarl.update_representation(train_set, current_class_count=s+self.num_cls_per_task)
+            self.icarl.update_representation(train_set,
+                                             current_class_count=s+self.num_cls_per_task,
+                                             train_loader=train_loader,
+                                             test_loader=test_loader,
+                                             line_plotter=self.line_plotter)
             m = self.K // self.icarl.n_classes
 
             # Reduce exemplar sets for known classes
@@ -197,7 +201,7 @@ class IcarlTrainer(object):
                 preds = self.icarl.classify(images, transform)
                 total += labels.size(0)
                 correct += (preds.data.cpu() == labels.data.cpu()).sum()
-            test_acc = float(correct )/ float(total)
+            test_acc = float(correct)/ float(total)
 
             print('Test Accuracy: %d %%' % (100 * test_acc))
 
