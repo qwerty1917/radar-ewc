@@ -250,7 +250,7 @@ class Icarl(nn.Module):
                         dist_loss, round(train_acc, 4), round(test_acc, 4), self.n_known, len(new_classes)
                     ))
 
-                if self.args.visdom:
+                if self.args.visdom and self.args.icarl_K == 0:
                     line_plotter.plot(var_name='loss',
                                       split_name='train {} class'.format(current_class_count),
                                       title_name=self.args.date + ' Task Loss',
