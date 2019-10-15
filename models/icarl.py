@@ -226,44 +226,44 @@ class Icarl(nn.Module):
 
                 optimizer.step()
 
-                total = 0.0
-                correct = 0.0
-                for indices, images, labels, _ in train_loader:
-                    images = cuda(Variable(images), self.args.cuda)
-                    preds = self.classify(images)
-                    total += labels.size(0)
-                    correct += (preds.data.cpu() == labels.data.cpu()).sum()
-                train_acc = float(correct) / float(total)
-
-                total = 0.0
-                correct = 0.0
-                for indices, images, labels, _ in test_loader:
-                    images = cuda(Variable(images), self.args.cuda)
-                    preds = self.classify(images)
-                    total += labels.size(0)
-                    correct += (preds.data.cpu() == labels.data.cpu()).sum()
-                test_acc = float(correct) / float(total)
-
                 if (i + 1) % 5 == 0:
+                    total = 0.0
+                    correct = 0.0
+                    for indices, images, labels, _ in train_loader:
+                        images = cuda(Variable(images), self.args.cuda)
+                        preds = self.classify(images)
+                        total += labels.size(0)
+                        correct += (preds.data.cpu() == labels.data.cpu()).sum()
+                    train_acc = float(correct) / float(total)
+
+                    total = 0.0
+                    correct = 0.0
+                    for indices, images, labels, _ in test_loader:
+                        images = cuda(Variable(images), self.args.cuda)
+                        preds = self.classify(images)
+                        total += labels.size(0)
+                        correct += (preds.data.cpu() == labels.data.cpu()).sum()
+                    test_acc = float(correct) / float(total)
+
                     print('Epoch [{}/{}], Iter [{}/{}] Loss: {}, Dist_loss: {}, Train acc: {}, Test acc: {}, known class: {}, new class: {}'.format(
                         epoch_i + 1, self.args.epoch, i + 1, len(dataset) // self.args.train_batch_size, train_loss.item(),
                         dist_loss, round(train_acc, 4), round(test_acc, 4), self.n_known, len(new_classes)
                     ))
 
-                if self.args.visdom and self.args.icarl_K == 0:
-                    line_plotter.plot(var_name='loss',
-                                      split_name='train {} class'.format(current_class_count),
-                                      title_name=self.args.date + ' Task Loss',
-                                      x=iteration,
-                                      y=train_loss.item())
-                    line_plotter.plot(var_name='acc.',
-                                      split_name='train {} class'.format(current_class_count),
-                                      title_name=self.args.date + ' Task Accuracy',
-                                      x=iteration,
-                                      y=train_acc)
-                    line_plotter.plot(var_name='acc.',
-                                      split_name='test {} class'.format(current_class_count),
-                                      title_name=self.args.date + ' Task Accuracy',
-                                      x=iteration,
-                                      y=test_acc)
+                    if self.args.visdom:
+                        line_plotter.plot(var_name='loss',
+                                          split_name='train {} class'.format(current_class_count),
+                                          title_name=self.args.date + ' Task Loss',
+                                          x=iteration,
+                                          y=train_loss.item())
+                        line_plotter.plot(var_name='acc.',
+                                          split_name='train {} class'.format(current_class_count),
+                                          title_name=self.args.date + ' Task Accuracy',
+                                          x=iteration,
+                                          y=train_acc)
+                        line_plotter.plot(var_name='acc.',
+                                          split_name='test {} class'.format(current_class_count),
+                                          title_name=self.args.date + ' Task Accuracy',
+                                          x=iteration,
+                                          y=test_acc)
                 iteration += 1
