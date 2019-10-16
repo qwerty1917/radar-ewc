@@ -164,7 +164,7 @@ def make_log_name(args):
     if args.pretrain or args.load_pretrain:
         log_name += '_pre_{}tasks'.format(args.num_pre_tasks)
         if args.pre_reg_param:
-            log_name += 'apply_reg'
+            log_name += '_apply_reg'
 
     log_name += '_epochs{}'.format(args.epoch)
 
