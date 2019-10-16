@@ -144,12 +144,12 @@ class cont_DCNN(object):
 
             if self.pre_reg_param:
                 if self.continual == 'ewc' or self.continual == 'ewc_online':
-                    fisher_mat = self.estimate_fisher(self.data_loader['train'], self.task_idx)
+                    fisher_mat = self.estimate_fisher(self.data_loader['train'], self.task_idx, self.pre_reg_param)
                     self.store_fisher_n_params(fisher_mat)
                     print('Fisher matrix for pretrained task stored successfully!')
 
                 elif self.continual == 'hat_ewc':
-                    fisher_mat = self.estimate_fisher(self.data_loader['train'], self.task_idx)
+                    fisher_mat = self.estimate_fisher(self.data_loader['train'], self.task_idx, self.pre_reg_param)
                     self.store_fisher_n_params_hat_ver(fisher_mat)
                     print('Fisher matrix for pretrained task stored successfully!')
 
@@ -158,7 +158,7 @@ class cont_DCNN(object):
                     print('Parameters for pretrained task stored successfully!')
 
                 elif self.continual == 'mas':
-                    self.update_mas_omega(self.data_loader['train'], self.task_idx)
+                    self.update_mas_omega(self.data_loader['train'], self.task_idx, self.pre_reg_param)
                     print('Omega and params for pretrained task stored successfully!')
 
 
@@ -504,7 +504,7 @@ class cont_DCNN(object):
 
     # ----------------- EWC-specific functions -----------------#
 
-    def estimate_fisher(self, data_loader, task_idx):
+    def estimate_fisher(self, data_loader, task_idx, pre_reg=False):
         '''After completing training on a task, estimate diagonal of Fisher Information matrix.
         [data_loader]:          <DataLoader> to be used to estimate FI-matrix'''
 
@@ -518,7 +518,7 @@ class cont_DCNN(object):
                 est_fisher_info[n] = p.detach().clone().zero_()
 
         for i, data in enumerate(data_loader):
-            if self.pre_reg_param:
+            if pre_reg:
                 images, _, labels = data
             else:
                 images, labels = data
@@ -731,7 +731,7 @@ class cont_DCNN(object):
 
     # ----------------- MAS-specific functions -----------------#
 
-    def update_mas_omega(self, data_loader, task_idx):
+    def update_mas_omega(self, data_loader, task_idx, pre_reg=False):
 
         self.set_mode('eval')
 
@@ -746,7 +746,7 @@ class cont_DCNN(object):
 
         for i, data in enumerate(data_loader):
 
-            if self.pre_reg_param:
+            if pre_reg:
                 images, _, _ = data
             else:
                 images, _ = data
