@@ -7,13 +7,15 @@ import torch.nn.functional as F
 import numpy as np
 
 from models.cnn import Dcnn
-from utils import cuda
+from utils import cuda, set_seed
 
 
 class Icarl(nn.Module):
     def __init__(self, args):
         super(Icarl, self).__init__()
         self.args = args
+
+        set_seed(self.args.seed)
 
         # Network architecture
         self.feature_size = args.icarl_feature_size
@@ -124,17 +126,25 @@ class Icarl(nn.Module):
         exemplar_set = []
         exemplar_path_set = []
         exemplar_features = []  # list of Variables of shape (feature_size,)
-        for k in range(1, m + 1):
-            S = np.sum(exemplar_features, axis=0)
-            phi = features
-            mu = class_mean
-            mu_p = (1.0 / k) * (phi + S)
-            mu_p = mu_p / mu_p.norm()
-            i = torch.argmin(torch.sqrt(torch.sum((mu - mu_p) ** 2, dim=1)))
+        if self.args.icarl_random_example:
+            indices = list(range(images.size()[0]))
+            indices = np.random.choice(indices, m, replace=False)
+            for i in indices:
+                exemplar_set.append(np.array(images[i].cpu()))
+                exemplar_path_set.append(np.array(paths[i]))
+                exemplar_features.append(features[i])
+        else:
+            for k in range(1, m + 1):
+                S = np.sum(exemplar_features, axis=0)
+                phi = features
+                mu = class_mean
+                mu_p = (1.0 / k) * (phi + S)
+                mu_p = mu_p / mu_p.norm()
+                i = torch.argmin(torch.sqrt(torch.sum((mu - mu_p) ** 2, dim=1)))
 
-            exemplar_set.append(np.array(images[i].cpu()))
-            exemplar_path_set.append(np.array(paths[i]))
-            exemplar_features.append(features[i])
+                exemplar_set.append(np.array(images[i].cpu()))
+                exemplar_path_set.append(np.array(paths[i]))
+                exemplar_features.append(features[i])
         self.exemplar_sets.append(np.array(exemplar_set))
         self.exemplar_path_sets.append(np.array(exemplar_path_set))
 

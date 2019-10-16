@@ -119,6 +119,7 @@ if __name__ == "__main__":
     parser.add_argument('--icarl_K', default=20, type=int, help='total number of exemplars')
     parser.add_argument('--icarl_num_cls_per_task', default=1, type=int, help='number of added classes per task')
     parser.add_argument('--icarl_feature_size', default=128, type=int, help='feature extractor output size')
+    parser.add_argument('--icarl_random_example', default=False, type=str2bool, help='random exemplar')
 
     args = parser.parse_args()
 
