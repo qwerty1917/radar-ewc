@@ -14,7 +14,7 @@ from dataloader import return_data
 from gan_trainer import WGAN
 from models.cnn import Dcnn
 from models.icarl import Icarl
-from utils import cuda, make_log_name, check_log_dir, VisdomPlotter, VisdomImagesPlotter, set_seed
+from utils import cuda, make_log_name, check_log_dir, VisdomPlotter, VisdomImagesPlotter, set_seed, append_conf_mat_to_file
 
 
 ## Weights init function, DCGAN use 0.02 std
@@ -131,6 +131,7 @@ class IcarlTrainer(object):
         self.set_mode('train')
 
         acc_log = np.zeros((7-1, 7), dtype=np.float32)
+        conf_mats = {}
 
         for s in range(1, 7, self.num_cls_per_task):
             if s == 1:
@@ -206,20 +207,29 @@ class IcarlTrainer(object):
             print('Test Accuracy: %d %%' % (100 * test_acc))
 
             # log
+            conf_mat = np.zeros((s+1, s+1), dtype=np.float32)
             for old_task_idx in range(s+1):
                 log_data_loader, _, transform = return_data(self.args, class_range=range(old_task_idx, old_task_idx+1))
                 log_test_loader = log_data_loader['eval']
+
                 for indices, images, labels, _ in log_test_loader:
                     images = cuda(Variable(images), self.cuda)
                     preds = self.icarl.classify(images, transform)
                     total += labels.size(0)
                     correct += (preds.data.cpu() == labels.data.cpu()).sum()
+                    for i in range(labels.data.cpu().size()[0]):
+                        conf_mat[labels.data.cpu()[i], preds.data.cpu()[i]] += 1
                 test_acc = float(correct) / float(total)
                 acc_log[s-1, old_task_idx] = test_acc
 
                 np.savetxt(self.eval_file_path, acc_log, '%.4f')
                 print('Save at ' + self.eval_file_path)
 
+            print("conf mat:")
+            print(conf_mat)
+            conf_mats[s] = conf_mat.tolist()
+
+        append_conf_mat_to_file(self.eval_file_path, conf_mats)
         utils.append_settings_to_file(self.eval_file_path, self.args)
 
 

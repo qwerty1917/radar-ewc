@@ -3,6 +3,7 @@
 import argparse
 from pathlib import Path
 import json
+from typing import List, Dict
 
 import torch
 from torch import nn
@@ -301,4 +302,15 @@ def append_settings_to_file(file_path, args):
     f = open(file_path, "a+")
     print("current settings: {}".format(settings_json))
     f.write(settings_json)
+    f.write("\n")
     f.close()
+
+
+def append_conf_mat_to_file(file_path: str, mats: Dict):
+    conf_mats_json = json.dumps(mats)
+    f = open(file_path, "a+")
+    print("conf mats: {}".format(conf_mats_json))
+    f.write(conf_mats_json)
+    f.write("\n")
+    f.close()
+
