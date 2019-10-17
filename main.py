@@ -5,6 +5,7 @@ import argparse
 from cont_trainer import cont_DCNN
 from bayes_cont_trainer import baye_DCNN
 from non_cont_trainer import DCNN
+from gem_trainer import gem_DCNN
 
 from utils import str2bool, set_seed
 
@@ -23,6 +24,8 @@ def main(args):
             net = baye_DCNN(args)
         elif args.continual == 'none':
             net = DCNN(args)
+        elif args.continual == 'gem':
+            net = gem_DCNN(args)
         else:
             net = cont_DCNN(args)
     else:
@@ -111,6 +114,13 @@ if __name__ == "__main__":
     parser.add_argument('--ratio', default=0.5, type=float, help='(default=%(default)f)')
     parser.add_argument('--rho', type=float, default=-2.783, help='initial rho')
     parser.add_argument('--lr_rho', type=float, default=0.001, help='initial lr rho for ucl')
+
+    # GEM
+    parser.add_argument('--n_memories', type=int, default=0,
+                        help='number of memories per task')
+    parser.add_argument('--memory_strength', default=0.5, type=float,
+                        help='memory strength (meaning depends on memory)')
+
     args = parser.parse_args()
 
     main(args)
