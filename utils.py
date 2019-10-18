@@ -167,6 +167,7 @@ def make_log_name(args):
             log_name += '_apply_reg'
 
     log_name += '_epochs{}'.format(args.epoch)
+    log_name += '_{}ep'.format(args.eval_period)
 
     if args.lr_decay:
         log_name += '_decay'
