@@ -161,6 +161,9 @@ def make_log_name(args):
     elif args.continual == 'ucl':
         log_name += '_alpha{}_ratio{}_lr-rho{}'.format(args.alpha, args.ratio, args.lr_rho)
 
+    elif args.continual == 'gem':
+        log_name += '_n_memories{}'.format(args.n_memories)
+
     if args.pretrain or args.load_pretrain:
         log_name += '_pre_{}tasks'.format(args.num_pre_tasks)
         if args.pre_reg_param:
