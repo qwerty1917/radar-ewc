@@ -108,8 +108,9 @@ class gem_DCNN(object):
         self.margin = args.memory_strength
         self.n_memories = args.n_memories
         # allocate episodic memory
-        self.n_inputs = self.image_size ** 2
-        self.memory_data = torch.FloatTensor(self.num_tasks, self.n_memories, self.n_inputs)
+        # self.n_inputs = self.image_size ** 2
+        self.memory_data = torch.FloatTensor(self.num_tasks, self.n_memories,
+                                             self.input_channel, self.image_size, self.image_size)
         self.memory_labs = torch.LongTensor(self.num_tasks, self.n_memories)
         if args.cuda:
             self.memory_data = self.memory_data.cuda()
@@ -288,11 +289,8 @@ class gem_DCNN(object):
                             # fwd/bwd on the examples in the memory
 
                             offset1, offset2 = self.compute_offsets(past_task, self.nc_per_task, self.is_incremental)
-                            ptloss = self.criterion(
-                                self.forward(
-                                    self.memory_data[past_task],
-                                    past_task)[:, offset1: offset2],
-                                self.memory_labs[past_task] - offset1)
+                            outputs = self.forward(self.memory_data[past_task], past_task)[:, offset1: offset2]
+                            ptloss = self.criterion(outputs, self.memory_labs[past_task] - offset1)
                             ptloss.backward()
                             self.store_grad(self.C.parameters, self.grads, self.grad_dims, past_task)
 
@@ -301,7 +299,7 @@ class gem_DCNN(object):
                     self.C.zero_grad()
 
                     offset1, offset2 = self.compute_offsets(self.task_idx, self.nc_per_task, self.is_incremental)
-                    outputs = self.forward(images, labels)[:, offset1: offset2]
+                    outputs = self.forward(images, self.task_idx)[:, offset1: offset2]
                     train_loss = self.criterion(outputs, labels - offset1)
                     train_loss.backward()
 
