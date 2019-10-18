@@ -108,7 +108,7 @@ class gem_DCNN(object):
         self.margin = args.memory_strength
         self.n_memories = args.n_memories
         # allocate episodic memory
-        self.n_inputs = self.image_size.pow(2)
+        self.n_inputs = self.image_size ** 2
         self.memory_data = torch.FloatTensor(self.num_tasks, self.n_memories, self.n_inputs)
         self.memory_labs = torch.LongTensor(self.num_tasks, self.n_memories)
         if args.cuda:
