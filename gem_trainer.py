@@ -340,8 +340,7 @@ class gem_DCNN(object):
                     correct = (predicted == (labels-offset1)).sum().item()
                     train_acc = 100 * correct / total
 
-                    # TODO : Run and verify
-                    if self.global_iter % 5 == 0:
+                    if self.global_iter % self.eval_period == 0:
 
                         test_loss, test_acc = self.evaluate(self.task_idx)
 
