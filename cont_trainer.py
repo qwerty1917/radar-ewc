@@ -44,12 +44,13 @@ class cont_DCNN(object):
 
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
+        self.log_name = make_log_name(args)
         self.eval_dir = os.path.join(args.eval_dir, args.date, args.continual)
         self.model_dir = os.path.join(args.model_dir, args.date, args.continual)
-
+        self.model_dir = os.path.join(self.model_dir, self.log_name)
         check_log_dir(self.eval_dir)
         check_log_dir(self.model_dir)
-        self.log_name = make_log_name(args)
+
 
         # Misc
         self.cuda = args.cuda and torch.cuda.is_available()
@@ -291,7 +292,7 @@ class cont_DCNN(object):
                                     W[n].add_(-p.grad * (p.detach() - p_old[n]))
                                 p_old[n] = p.detach().clone()
 
-                    if self.global_iter % 5 == 0:
+                    if self.global_iter % 1 == 0:
 
                         test_loss, test_acc = self.evaluate(self.task_idx)
 
@@ -413,7 +414,7 @@ class cont_DCNN(object):
 
             np.savetxt(os.path.join(self.eval_dir, self.log_name) + '.txt', acc_log, '%.4f')
             print('Log saved at ' + os.path.join(self.eval_dir, self.log_name))
-            torch.save(self.C.state_dict(), os.path.join(self.model_dir, self.log_name) + '.pt')
+            torch.save(self.C.state_dict(), os.path.join(self.model_dir, 'task{}'.format(self.task_idx+1)) + '.pt')
             print('Model saved at ' + os.path.join(self.eval_dir, self.log_name))
 
             if self.continual == 'ewc' or self.continual == 'ewc_online':
