@@ -404,8 +404,9 @@ class cont_DCNN(object):
             if self.lr_decay:
                 self.C.load_state_dict(best_model)
 
-            # for old_task_idx in range(self.task_idx + 1):
-            for t_idx in range(self.num_tasks):
+            # for old task
+            for t_idx in range(self.task_idx + 1):
+            # for t_idx in range(self.num_tasks):
                 eval_loss, eval_acc = self.evaluate(t_idx)
                 print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(t_idx + 1, eval_loss, eval_acc))
                 acc_log[self.task_idx-self.num_pre_tasks, t_idx] = eval_acc
