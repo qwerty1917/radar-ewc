@@ -37,15 +37,22 @@ class baye_DCNN(object):
 
         set_seed(args.model_seed)
 
+        # pretrain
+        self.num_pre_tasks = args.num_pre_tasks
+        self.load_pretrain = args.load_pretrain
+        self.model_seed = args.model_seed
+        self.pre_reg_param = args.pre_reg_param
+
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
+        self.log_name = make_log_name(args)
         self.eval_dir = os.path.join(args.eval_dir, args.date, args.continual)
         self.model_dir = os.path.join(args.model_dir, args.date, args.continual)
-
+        self.model_dir = os.path.join(self.model_dir, self.log_name)
         check_log_dir(self.eval_dir)
         check_log_dir(self.model_dir)
-
-        self.log_name = make_log_name(args)
+        self.eval_period = args.eval_period
+        self.measure_fwt = args.measure_fwt
 
         # Misc
         self.cuda = args.cuda and torch.cuda.is_available()
@@ -239,7 +246,7 @@ class baye_DCNN(object):
                     correct = (predicted == labels).sum().item()
                     train_acc = 100 * correct / total
 
-                    if self.global_iter % 5 == 0:
+                    if self.global_iter % self.eval_period == 0:
 
                         test_loss, test_acc = self.evaluate(self.task_idx)
 
@@ -347,15 +354,22 @@ class baye_DCNN(object):
             if self.lr_decay:
                 self.C.load_state_dict(best_model)
 
-            for old_task_idx in range(self.task_idx+1):
-                eval_loss, eval_acc = self.evaluate(old_task_idx)
-                print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(old_task_idx + 1, eval_loss, eval_acc))
-                acc_log[self.task_idx, old_task_idx] = eval_acc
+            # for old task
+            if self.measure_fwt:
+                for t_idx in range(self.num_tasks):
+                    eval_loss, eval_acc = self.evaluate(t_idx)
+                    print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(t_idx + 1, eval_loss, eval_acc))
+                    acc_log[self.task_idx-self.num_pre_tasks, t_idx] = eval_acc
+            else:
+                for t_idx in range(self.task_idx + 1):
+                    eval_loss, eval_acc = self.evaluate(t_idx)
+                    print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(t_idx + 1, eval_loss, eval_acc))
+                    acc_log[self.task_idx-self.num_pre_tasks, t_idx] = eval_acc
 
             np.savetxt(os.path.join(self.eval_dir, self.log_name) + '.txt', acc_log, '%.4f')
             print('Log saved at ' + os.path.join(self.eval_dir, self.log_name))
-            torch.save(self.C.state_dict(), os.path.join(self.model_dir, self.log_name) + '.pt')
-            print('Model saved at ' + os.path.join(self.eval_dir, self.log_name))
+            torch.save(self.C.state_dict(), os.path.join(self.model_dir, 'task{}'.format(self.task_idx+1)) + '.pt')
+            print('Model saved at ' + os.path.join(self.model_dir))
 
             # self.C_old = deepcopy(self.C)
 

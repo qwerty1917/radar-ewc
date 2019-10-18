@@ -45,6 +45,8 @@ if __name__ == "__main__":
     # Evaluation
     parser.add_argument('--date', default='190801', type=str, help='experiment date')
     parser.add_argument('--eval_dir', default='./evaluation/', type=str, help='evaluation(test) result directory')
+    parser.add_argument('--eval_period', default=5, type=int, help='how often measure evaluation')
+    parser.add_argument('--measure_fwt', default=True, type=str2bool, help='Add FWT measure to result log')
 
     # Optimization
     parser.add_argument('--epoch', default=20, type=int, help='epoch size')
