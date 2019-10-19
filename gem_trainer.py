@@ -45,12 +45,12 @@ class gem_DCNN(object):
 
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
+        self.log_name = make_log_name(args)
         self.eval_dir = os.path.join(args.eval_dir, args.date, args.continual)
         self.model_dir = os.path.join(args.model_dir, args.date, args.continual)
-
+        self.model_dir = os.path.join(self.model_dir, self.log_name)
         check_log_dir(self.eval_dir)
         check_log_dir(self.model_dir)
-        self.log_name = make_log_name(args)
         self.eval_period = args.eval_period
         self.measure_fwt = args.measure_fwt
 
@@ -86,15 +86,6 @@ class gem_DCNN(object):
         self.summary_dir = Path("./tensorboard_logs/").joinpath(self.env_name)
         self.visualization_init()
 
-        # Dataset
-        self.data_loader, self.num_tasks = return_data(args)
-
-        # Continual Learning
-        self.continual = args.continual
-        self.is_incremental = args.incremental
-        self.lamb = args.lamb
-        self.task_count = 0
-
         # Network
         self.cnn_type = args.cnn_type
         self.load_ckpt = args.load_ckpt
@@ -104,6 +95,15 @@ class gem_DCNN(object):
         self.num_tasks = args.num_tasks
         self.train_tasks = self.num_tasks - self.num_pre_tasks
         self.model_init()
+
+        # Dataset
+        self.data_loader, self.num_tasks = return_data(args)
+
+        # Continual Learning
+        self.continual = args.continual
+        self.is_incremental = args.incremental
+        self.lamb = args.lamb
+        self.task_count = 0
 
         self.margin = args.memory_strength
         self.n_memories = args.n_memories
@@ -250,11 +250,12 @@ class gem_DCNN(object):
         while self.task_idx < self.num_tasks:
 
             data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
-            best_loss = np.inf
-            best_model = deepcopy(self.C.state_dict())
-            lr = self.lr
-            patience = self.lr_patience
-            self.C_optim = self._get_optimizer(lr)
+            if self.lr_decay:
+                best_loss = np.inf
+                best_model = deepcopy(self.C.state_dict())
+                lr = self.lr
+                patience = self.lr_patience
+                self.C_optim = self._get_optimizer(lr)
 
             while True:
                 if self.epoch_i >= self.epoch or early_stop:
@@ -451,13 +452,14 @@ class gem_DCNN(object):
             if self.lr_decay:
                 self.C.load_state_dict(best_model)
 
-            # for old task
             if self.measure_fwt:
+                # for all task
                 for t_idx in range(self.num_tasks):
                     eval_loss, eval_acc = self.evaluate(t_idx)
                     print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(t_idx + 1, eval_loss, eval_acc))
                     acc_log[self.task_idx-self.num_pre_tasks, t_idx] = eval_acc
             else:
+                # for old task
                 for t_idx in range(self.task_idx + 1):
                     eval_loss, eval_acc = self.evaluate(t_idx)
                     print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(t_idx + 1, eval_loss, eval_acc))

@@ -35,13 +35,13 @@ class baye_DCNN(object):
     def __init__(self, args):
         self.args = args
 
-        set_seed(args.model_seed)
-
         # pretrain
         self.num_pre_tasks = args.num_pre_tasks
         self.load_pretrain = args.load_pretrain
         self.model_seed = args.model_seed
         self.pre_reg_param = args.pre_reg_param
+
+        set_seed(self.model_seed)
 
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
@@ -61,7 +61,7 @@ class baye_DCNN(object):
         # Optimization
         self.epoch = args.epoch
         self.epoch_i = 0
-        self.task_idx = 0
+        self.task_idx = self.num_pre_tasks
         self.train_batch_size = args.train_batch_size
         self.lr = args.lr
         self.lr_rho = args.lr_rho
@@ -105,6 +105,7 @@ class baye_DCNN(object):
         self.image_size = args.image_size
         self.multi = args.multi
         self.num_tasks = args.num_tasks
+        self.train_tasks = self.num_tasks - self.num_pre_tasks
         self.model_init()
 
         # Dataset
@@ -205,17 +206,18 @@ class baye_DCNN(object):
         min_loss_not_updated = 0
         early_stop = False
 
-        acc_log = np.zeros((self.num_tasks, self.num_tasks), dtype=np.float32)
+        acc_log = np.zeros((self.train_tasks, self.num_tasks), dtype=np.float32)
 
         while self.task_idx < self.num_tasks:
 
             data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
-            best_loss = np.inf
-            best_model = deepcopy(self.C.state_dict())
-            lr = self.lr
-            lr_rho = self.lr_rho
-            patience = self.lr_patience
-            self.C_optim = self._get_optimizer(lr, lr_rho)
+            if self.lr_decay:
+                best_loss = np.inf
+                best_model = deepcopy(self.C.state_dict())
+                lr = self.lr
+                lr_rho = self.lr_rho
+                patience = self.lr_patience
+                self.C_optim = self._get_optimizer(lr, lr_rho)
 
             while True:
                 if self.epoch_i >= self.epoch or early_stop:
@@ -354,13 +356,14 @@ class baye_DCNN(object):
             if self.lr_decay:
                 self.C.load_state_dict(best_model)
 
-            # for old task
             if self.measure_fwt:
+                # for all task
                 for t_idx in range(self.num_tasks):
                     eval_loss, eval_acc = self.evaluate(t_idx)
                     print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(t_idx + 1, eval_loss, eval_acc))
                     acc_log[self.task_idx-self.num_pre_tasks, t_idx] = eval_acc
             else:
+                # for old task
                 for t_idx in range(self.task_idx + 1):
                     eval_loss, eval_acc = self.evaluate(t_idx)
                     print("Task{} test loss: {:.3f}, Test acc.: {:.3f}".format(t_idx + 1, eval_loss, eval_acc))

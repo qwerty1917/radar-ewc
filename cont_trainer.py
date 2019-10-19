@@ -85,6 +85,16 @@ class cont_DCNN(object):
         self.summary_dir = Path("./tensorboard_logs/").joinpath(self.env_name)
         self.visualization_init()
 
+        # Network
+        self.cnn_type = args.cnn_type
+        self.load_ckpt = args.load_ckpt
+        self.input_channel = args.channel
+        self.image_size = args.image_size
+        self.multi = args.multi
+        self.num_tasks = args.num_tasks
+        self.train_tasks = self.num_tasks - self.num_pre_tasks
+        self.model_init()
+
         # Dataset
         self.data_loader, self.num_tasks = return_data(args)
 
@@ -100,16 +110,6 @@ class cont_DCNN(object):
 
         # SI
         self.si_eps = args.si_eps
-
-        # Network
-        self.cnn_type = args.cnn_type
-        self.load_ckpt = args.load_ckpt
-        self.input_channel = args.channel
-        self.image_size = args.image_size
-        self.multi = args.multi
-        self.num_tasks = args.num_tasks
-        self.train_tasks = self.num_tasks - self.num_pre_tasks
-        self.model_init()
 
         # if self.ewc and not self.continual:
         #     raise ValueError("Cannot set EWC with no continual setting")
