@@ -37,12 +37,13 @@ class DCNN(object):
 
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
+        self.log_name = make_log_name(args)
         self.eval_dir = os.path.join(args.eval_dir, args.date, args.continual)
         self.model_dir = os.path.join(args.model_dir, args.date, args.continual)
 
         check_log_dir(self.eval_dir)
         check_log_dir(self.model_dir)
-        self.log_name = make_log_name(args)
+        self.eval_period = args.eval_period
 
         # Misc
         self.cuda = args.cuda and torch.cuda.is_available()
@@ -177,11 +178,12 @@ class DCNN(object):
         min_loss_not_updated = 0
         early_stop = False
 
-        best_loss = np.inf
-        best_model = deepcopy(self.C.state_dict())
-        lr = self.lr
-        patience = self.lr_patience
-        self.C_optim = self._get_optimizer(lr)
+        if self.lr_decay:
+            best_loss = np.inf
+            best_model = deepcopy(self.C.state_dict())
+            lr = self.lr
+            patience = self.lr_patience
+            self.C_optim = self._get_optimizer(lr)
 
 
         if self.pretrain:
@@ -226,7 +228,7 @@ class DCNN(object):
                 correct = (predicted == labels).sum().item()
                 train_acc = 100 * correct / total
 
-                if self.global_iter % 1 == 0:
+                if self.global_iter % self.eval_period == 0:
 
                     test_loss, test_acc = self.evaluate()
 
@@ -280,7 +282,6 @@ class DCNN(object):
 
                         patience = self.lr_patience
                         self.optimizer = self._get_optimizer(lr)
-
 
                 # if min_loss is None:
                 #     min_loss = train_loss.item()
