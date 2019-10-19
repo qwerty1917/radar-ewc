@@ -239,11 +239,12 @@ class cont_DCNN(object):
         while self.task_idx < self.num_tasks:
 
             data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
-            best_loss = np.inf
-            best_model = deepcopy(self.C.state_dict())
-            lr = self.lr
-            patience = self.lr_patience
-            self.C_optim = self._get_optimizer(lr)
+            if self.lr_decay:
+                best_loss = np.inf
+                best_model = deepcopy(self.C.state_dict())
+                lr = self.lr
+                patience = self.lr_patience
+                self.C_optim = self._get_optimizer(lr)
 
             # Prepare <dicts> to store running importance estimates and param-values before update ("Synaptic Intelligence
             if self.continual == 'si':
