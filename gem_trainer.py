@@ -228,7 +228,10 @@ class gem_DCNN(object):
             print("=> no checkpoint found at '{}'".format(file_path))
 
     def forward(self, x, t):
-        output = self.C(x)
+        if self.multi:
+            output = self.C(x, t)
+        else:
+            output = self.C(x)
         if self.is_incremental:
             # make sure we predict classes within the current task
             offset1 = int(t * self.nc_per_task)
