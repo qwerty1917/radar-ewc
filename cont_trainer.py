@@ -85,6 +85,10 @@ class cont_DCNN(object):
         self.summary_dir = Path("./tensorboard_logs/").joinpath(self.env_name)
         self.visualization_init()
 
+        # Continual Learning
+        self.continual = args.continual
+        self.lamb = args.lamb
+
         # Network
         self.cnn_type = args.cnn_type
         self.load_ckpt = args.load_ckpt
@@ -97,10 +101,6 @@ class cont_DCNN(object):
 
         # Dataset
         self.data_loader, self.num_tasks = return_data(args)
-
-        # Continual Learning
-        self.continual = args.continual
-        self.lamb = args.lamb
 
         # EWC
         self.online = True if self.continual == 'ewc_online' else False

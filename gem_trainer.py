@@ -96,14 +96,14 @@ class gem_DCNN(object):
         self.train_tasks = self.num_tasks - self.num_pre_tasks
         self.model_init()
 
-        # Dataset
-        self.data_loader, self.num_tasks = return_data(args)
-
         # Continual Learning
         self.continual = args.continual
         self.is_incremental = args.incremental
         self.lamb = args.lamb
         self.task_count = 0
+
+        # Dataset
+        self.data_loader, self.num_tasks = return_data(args)
 
         self.margin = args.memory_strength
         self.n_memories = args.n_memories
