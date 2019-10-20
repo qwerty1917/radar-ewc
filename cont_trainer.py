@@ -89,6 +89,15 @@ class cont_DCNN(object):
         self.continual = args.continual
         self.lamb = args.lamb
 
+        # EWC
+        self.online = True if self.continual == 'ewc_online' else False
+        self.gamma = args.gamma
+        self.task_count = 0
+        self.normalize = args.fisher_normalize
+
+        # SI
+        self.si_eps = args.si_eps
+
         # Network
         self.cnn_type = args.cnn_type
         self.load_ckpt = args.load_ckpt
@@ -101,15 +110,6 @@ class cont_DCNN(object):
 
         # Dataset
         self.data_loader, self.num_tasks = return_data(args)
-
-        # EWC
-        self.online = True if self.continual == 'ewc_online' else False
-        self.gamma = args.gamma
-        self.task_count = 0
-        self.normalize = args.fisher_normalize
-
-        # SI
-        self.si_eps = args.si_eps
 
         # if self.ewc and not self.continual:
         #     raise ValueError("Cannot set EWC with no continual setting")
