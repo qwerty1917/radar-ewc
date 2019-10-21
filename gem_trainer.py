@@ -287,8 +287,8 @@ class gem_DCNN(object):
                             self.mem_cnt = 0
 
                     # compute gradient on previous tasks
-                    if self.task_idx > 0:
-                        for past_task in range(self.task_idx):
+                    if ((self.task_idx-self.num_pre_tasks) > 0) or self.pre_reg_param:
+                        for past_task in range(self.num_pre_tasks, self.task_idx):
                             self.C.zero_grad()
                             # fwd/bwd on the examples in the memory
 
@@ -308,7 +308,7 @@ class gem_DCNN(object):
                     train_loss.backward()
 
                     # check if gradient violates constraints
-                    if self.task_idx > 0:
+                    if ((self.task_idx-self.num_pre_tasks) > 0) or self.pre_reg_param:
                         # copy gradient
                         self.store_grad(self.C.parameters, self.grads, self.grad_dims, self.task_idx)
 
