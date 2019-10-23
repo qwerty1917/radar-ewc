@@ -109,6 +109,7 @@ class gem_DCNN(object):
         self.n_memories = args.n_memories
         # allocate episodic memory
         # self.n_inputs = self.image_size ** 2
+        self.memory_offset = 1 if self.pre_reg_param else 0
         self.memory_data = torch.FloatTensor(self.num_tasks, self.n_memories,
                                              self.input_channel, self.image_size, self.image_size)
         self.memory_labs = torch.LongTensor(self.num_tasks, self.n_memories)
@@ -165,9 +166,6 @@ class gem_DCNN(object):
                 './trained_models/20191008/none/subject_m_seed{}_s_seed1_window3_lamb0.0_pre_{}tasks_epochs100.pt'
                     .format(self.model_seed, self.num_pre_tasks))
             self.C.load_state_dict(param_loaded)
-
-            if self.pre_reg_param:
-                pass
 
 
     def visualization_init(self):
@@ -250,6 +248,10 @@ class gem_DCNN(object):
 
         acc_log = np.zeros((self.train_tasks, self.num_tasks), dtype=np.float32)
 
+        if self.load_pretrain and self.pre_reg_param:
+            self.set_memory(self.data_loader['train'])
+
+
         while self.task_idx < self.num_tasks:
 
             data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
@@ -288,7 +290,7 @@ class gem_DCNN(object):
 
                     # compute gradient on previous tasks
                     if ((self.task_idx-self.num_pre_tasks) > 0) or self.pre_reg_param:
-                        for past_task in range(self.num_pre_tasks, self.task_idx):
+                        for past_task in range(self.num_pre_tasks-self.memory_offset, self.task_idx):
                             self.C.zero_grad()
                             # fwd/bwd on the examples in the memory
 
@@ -598,3 +600,23 @@ class gem_DCNN(object):
                     param.grad.data.size())
                 param.grad.data.copy_(this_grad)
             cnt += 1
+
+    def set_memory(self, dataloader):
+        for i, (images, _, labels) in enumerate(dataloader):
+            images = cuda(images, self.cuda)
+            labels = cuda(labels, self.cuda)
+
+            bsz = labels.size(0)
+            endcnt = min(self.mem_cnt + bsz, self.n_memories)
+            effbsz = endcnt - self.mem_cnt
+            self.memory_data[self.num_pre_tasks-self.memory_offset, self.mem_cnt: endcnt].copy_(
+                images.data[: effbsz])
+            if bsz == 1:
+                self.memory_labs[self.num_pre_tasks-self.memory_offset, self.mem_cnt] = labels.data[0]
+            else:
+                self.memory_labs[self.num_pre_tasks-self.memory_offset, self.mem_cnt: endcnt].copy_(
+                    labels.data[: effbsz])
+            self.mem_cnt += effbsz
+            if self.mem_cnt == self.n_memories:
+                self.mem_cnt = 0
+                break

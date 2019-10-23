@@ -144,26 +144,6 @@ class cont_DCNN(object):
                     .format(self.model_seed, self.num_pre_tasks))
             self.C.load_state_dict(param_loaded)
 
-            if self.pre_reg_param:
-                if self.continual == 'ewc' or self.continual == 'ewc_online':
-                    fisher_mat = self.estimate_fisher(self.data_loader['train'], self.task_idx, self.pre_reg_param)
-                    self.store_fisher_n_params(fisher_mat)
-                    print('Fisher matrix for pretrained task stored successfully!')
-
-                elif self.continual == 'hat_ewc':
-                    fisher_mat = self.estimate_fisher(self.data_loader['train'], self.task_idx, self.pre_reg_param)
-                    self.store_fisher_n_params_hat_ver(fisher_mat)
-                    print('Fisher matrix for pretrained task stored successfully!')
-
-                elif self.continual == 'l2':
-                    self.store_params()
-                    print('Parameters for pretrained task stored successfully!')
-
-                elif self.continual == 'mas':
-                    self.update_mas_omega(self.data_loader['train'], self.task_idx, self.pre_reg_param)
-                    print('Omega and params for pretrained task stored successfully!')
-
-
     def visualization_init(self):
         if self.reset_env:
             self.delete_logs()
@@ -228,6 +208,25 @@ class cont_DCNN(object):
         early_stop = False
 
         acc_log = np.zeros((self.train_tasks, self.num_tasks), dtype=np.float32)
+
+        if self.load_pretrain and self.pre_reg_param:
+            if self.continual == 'ewc' or self.continual == 'ewc_online':
+                fisher_mat = self.estimate_fisher(self.data_loader['train'], self.task_idx, self.pre_reg_param)
+                self.store_fisher_n_params(fisher_mat)
+                print('Fisher matrix for pretrained task stored successfully!')
+
+            elif self.continual == 'hat_ewc':
+                fisher_mat = self.estimate_fisher(self.data_loader['train'], self.task_idx, self.pre_reg_param)
+                self.store_fisher_n_params_hat_ver(fisher_mat)
+                print('Fisher matrix for pretrained task stored successfully!')
+
+            elif self.continual == 'l2':
+                self.store_params()
+                print('Parameters for pretrained task stored successfully!')
+
+            elif self.continual == 'mas':
+                self.update_mas_omega(self.data_loader['train'], self.task_idx, self.pre_reg_param)
+                print('Omega and params for pretrained task stored successfully!')
 
         if self.continual == 'si':
             # Register starting param-values (needed for "intelligent synapses").
