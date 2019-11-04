@@ -228,6 +228,11 @@ class cont_DCNN(object):
                 self.update_mas_omega(self.data_loader['train'], self.task_idx, self.pre_reg_param)
                 print('Omega and params for pretrained task stored successfully!')
 
+            elif self.continual == 'imm-mode':
+                fisher_mat = self.estimate_fisher(self.data_loader['train'], self.task_idx, self.pre_reg_param)
+                self.store_fisher_n_params_imm(fisher_mat)
+                print('Parameters for pretrained task stored successfully!')
+
         if self.continual == 'si':
             # Register starting param-values (needed for "intelligent synapses").
             for n, p in self.C.named_parameters():
@@ -434,6 +439,11 @@ class cont_DCNN(object):
                 self.store_fisher_n_params_hat_ver(fisher_mat)
                 print('Fisher matrix for task {} stored successfully!'.format(self.task_idx + 1))
 
+            elif self.continual == 'imm-mode':
+                fisher_mat = self.estimate_fisher(data_loader, self.task_idx)
+                self.store_fisher_n_params_imm(fisher_mat)
+                print('Fisher matrix for task {} stored successfully!'.format(self.task_idx + 1))
+
             # SI: calculate and update the normalized path integral
             elif self.continual == 'si':
                 self.update_omega(W, self.si_eps)
@@ -502,6 +512,8 @@ class cont_DCNN(object):
             reg_loss = self.ewc_loss()
         elif self.continual == 'hat_ewc':
             reg_loss = self.ewc_loss_hat_ver()
+        elif self.continual == 'imm-mode':
+            reg_loss = self.imm_loss()
         elif self.continual == 'si':
             reg_loss = self.surrogate_loss()
         elif self.continual == 'l2':
@@ -614,6 +626,44 @@ class cont_DCNN(object):
 
         self.task_count = 1
 
+    def store_fisher_n_params_imm(self, fisher):
+
+        # Store new values in the network
+        for n, p in self.C.named_parameters():
+            if p.requires_grad:
+                n = n.replace('.', '__')
+                # -mode (=MAP parameter estimate)
+                p_old = getattr(self.C, '{}_prev_task'.format(n))
+                # -precision (approximated by diagonal Fisher Information matrix)
+
+                if self.task_count > 0:
+                    existing_values = getattr(self.C, '{}_estimated_fisher'.format(n))
+                    p = fisher[n] * p + existing_values * p_old
+                    fisher[n] = fisher[n] + existing_values
+                    p /= (fisher[n] == 0).float() + fisher[n]
+
+                self.C.register_buffer('{}_estimated_fisher'.format(n), fisher[n])
+                self.C.register_buffer('{}_prev_task'.format(n), p.detach().clone())
+
+        self.task_count = 1
+
+    def imm_loss(self):
+        '''Calculate l2-loss.'''
+        if self.task_count > 0:
+            losses = 0
+            for n, p in self.C.named_parameters():
+                if self.multi and n.startswith('last'):
+                    break
+                if p.requires_grad:
+                    n = n.replace('.', '__')
+                    mean = getattr(self.C, '{}_prev_task'.format(n))
+                    # Calculate EWC-loss
+                    losses += (p - mean).pow(2).sum()
+            return losses / 2.
+        else:
+            # imm-loss is 0 if there are no stored mode and precision yet
+            return 0.
+
     def ewc_loss(self):
         '''Calculate EWC-loss.'''
         if self.task_count > 0:
@@ -707,7 +757,7 @@ class cont_DCNN(object):
 
         # Store new values in the network
         for n, p in self.C.named_parameters():
-            if n.startswith('last'):
+            if self.multi and n.startswith('last'):
                 break
             if p.requires_grad:
                 n = n.replace('.', '__')
@@ -724,7 +774,7 @@ class cont_DCNN(object):
             # If "offline EWC", loop over all previous tasks (if "online EWC", [EWC_task_count]=1 so only 1 iteration)
             for task in range(1, self.task_count + 1):
                 for n, p in self.C.named_parameters():
-                    if n.startswith('last'):
+                    if self.multi and n.startswith('last'):
                         break
                     if p.requires_grad:
                         # Retrieve stored mode (MAP estimate) and precision (Fisher Information matrix)
