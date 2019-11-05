@@ -119,7 +119,9 @@ class gem_DCNN(object):
 
         # allocate temporary synaptic memory
         self.grad_dims = []
-        for param in self.C.parameters():
+        for n, param in self.C.named_parameters():
+            if self.multi and n.startswith('last'):
+                break
             self.grad_dims.append(param.data.numel())
         self.grads = torch.Tensor(sum(self.grad_dims), self.num_tasks)
         if args.cuda:
@@ -298,7 +300,7 @@ class gem_DCNN(object):
                             outputs = self.forward(self.memory_data[past_task], past_task)[:, offset1: offset2]
                             ptloss = self.criterion(outputs, self.memory_labs[past_task] - offset1)
                             ptloss.backward()
-                            self.store_grad(self.C.parameters, self.grads, self.grad_dims, past_task)
+                            self.store_grad(self.C.named_parameters, self.grads, self.grad_dims, past_task)
 
 
                     # now compute the grad on the current minibatch
@@ -312,7 +314,7 @@ class gem_DCNN(object):
                     # check if gradient violates constraints
                     if ((self.task_idx-self.num_pre_tasks) > 0) or self.pre_reg_param:
                         # copy gradient
-                        self.store_grad(self.C.parameters, self.grads, self.grad_dims, self.task_idx)
+                        self.store_grad(self.C.named_parameters, self.grads, self.grad_dims, self.task_idx)
 
                         indx = cuda(torch.arange(self.task_idx,dtype=torch.long), self.cuda)
                         dotp = torch.mm(self.grads[:, self.task_idx].unsqueeze(0),
@@ -321,7 +323,7 @@ class gem_DCNN(object):
                             self.project2cone2(self.grads[:, self.task_idx].unsqueeze(1),
                                           self.grads.index_select(1, indx), self.margin)
                             # copy gradients back
-                            self.overwrite_grad(self.C.parameters, self.grads[:, self.task_idx],
+                            self.overwrite_grad(self.C.named_parameters, self.grads[:, self.task_idx],
                                            self.grad_dims)
 
                     self.C_optim.step()
@@ -555,7 +557,9 @@ class gem_DCNN(object):
         # store the gradients
         grads[:, tid].fill_(0.0)
         cnt = 0
-        for param in pp():
+        for n, param in pp():
+            if self.multi and n.startswith('last'):
+                break
             if param.grad is not None:
                 beg = 0 if cnt == 0 else sum(grad_dims[:cnt])
                 en = sum(grad_dims[:cnt + 1])
@@ -592,7 +596,9 @@ class gem_DCNN(object):
             grad_dims: list storing number of parameters at each layer
         """
         cnt = 0
-        for param in pp():
+        for n, param in pp():
+            if self.multi and n.startswith('last'):
+                break
             if param.grad is not None:
                 beg = 0 if cnt == 0 else sum(grad_dims[:cnt])
                 en = sum(grad_dims[:cnt + 1])
