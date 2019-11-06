@@ -146,6 +146,8 @@ def make_log_name(args):
     log_name += '_window{}'.format(args.time_window)
     if args.multi:
         log_name += '_multi'
+        if args.init_from_prehead:
+            log_name += '_preinit'
 
     if args.fisher_normalize:
         log_name += '_normalized'
