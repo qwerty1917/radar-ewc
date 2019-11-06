@@ -110,7 +110,7 @@ class gem_DCNN(object):
         self.n_memories = args.n_memories
         # allocate episodic memory
         # self.n_inputs = self.image_size ** 2
-        self.memory_offset = 1 if self.pre_reg_param else 0
+        self.memory_offset = self.num_pre_tasks if self.pre_reg_param else 0
         self.memory_data = torch.FloatTensor(self.num_tasks, self.n_memories,
                                              self.input_channel, self.image_size, self.image_size)
         self.memory_labs = torch.LongTensor(self.num_tasks, self.n_memories)
@@ -264,7 +264,8 @@ class gem_DCNN(object):
         acc_log = np.zeros((self.train_tasks, self.num_tasks), dtype=np.float32)
 
         if self.load_pretrain and self.pre_reg_param:
-            self.set_memory(self.data_loader['train'])
+            for i in range(self.num_pre_tasks):
+                self.set_memory(self.data_loader['task{}'.format(i)]['train'], i)
 
 
         while self.task_idx < self.num_tasks:
@@ -622,20 +623,20 @@ class gem_DCNN(object):
                 param.grad.data.copy_(this_grad)
             cnt += 1
 
-    def set_memory(self, dataloader):
-        for i, (images, _, labels) in enumerate(dataloader):
+    def set_memory(self, dataloader, task_idx):
+        for i, (images, labels) in enumerate(dataloader):
             images = cuda(images, self.cuda)
             labels = cuda(labels, self.cuda)
 
             bsz = labels.size(0)
             endcnt = min(self.mem_cnt + bsz, self.n_memories)
             effbsz = endcnt - self.mem_cnt
-            self.memory_data[self.num_pre_tasks-self.memory_offset, self.mem_cnt: endcnt].copy_(
+            self.memory_data[task_idx, self.mem_cnt: endcnt].copy_(
                 images.data[: effbsz])
             if bsz == 1:
-                self.memory_labs[self.num_pre_tasks-self.memory_offset, self.mem_cnt] = labels.data[0]
+                self.memory_labs[task_idx, self.mem_cnt] = labels.data[0]
             else:
-                self.memory_labs[self.num_pre_tasks-self.memory_offset, self.mem_cnt: endcnt].copy_(
+                self.memory_labs[task_idx, self.mem_cnt: endcnt].copy_(
                     labels.data[: effbsz])
             self.mem_cnt += effbsz
             if self.mem_cnt == self.n_memories:
