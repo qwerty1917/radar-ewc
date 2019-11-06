@@ -102,6 +102,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--lamb', default=0., type=float, help='regularization strength')
     parser.add_argument('--multi', default=False, type=str2bool, help='apply multi-head approach')
+    parser.add_argument('--init_from_prehead', default=False, type=str2bool, help='apply previous task head init')
     parser.add_argument('--num-tasks', default=12, type=int, help='number of tasks for continual training')
     parser.add_argument('--subject_shuffle', default=False, type=str2bool, help='shuffle subjects')
 

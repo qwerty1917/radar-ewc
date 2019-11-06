@@ -101,6 +101,7 @@ class gem_DCNN(object):
         self.is_incremental = args.incremental
         self.lamb = args.lamb
         self.task_count = 0
+        self.init_from_prehead = args.init_from_prehead
 
         # Dataset
         self.data_loader, self.num_tasks = return_data(args)
@@ -242,6 +243,18 @@ class gem_DCNN(object):
                 output[:, offset2:self.n_outputs].data.fill_(-10e10)
         return output
 
+    def init_head(self, task_idx):
+        for n, p in self.C.named_parameters():
+            if n == 'last.{}.weight'.format(task_idx - 1):
+                prev_p_weight = p
+            elif n == 'last.{}.bias'.format(task_idx - 1):
+                prev_p_bias = p
+
+            if n == 'last.{}.weight'.format(task_idx):
+                p.data.copy_(prev_p_weight)
+            elif n == 'last.{}.bias'.format(task_idx):
+                p.data.copy_(prev_p_bias)
+
     def train(self):
         self.set_mode('train')
         min_loss = None
@@ -257,6 +270,10 @@ class gem_DCNN(object):
         while self.task_idx < self.num_tasks:
 
             data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
+
+            if (self.multi and self.init_from_prehead) and self.task_idx>0:
+                self.init_head(self.task_idx)
+
             if self.lr_decay:
                 best_loss = np.inf
                 best_model = deepcopy(self.C.state_dict())
@@ -503,10 +520,8 @@ class gem_DCNN(object):
                 images = cuda(images, self.cuda)
                 labels = cuda(labels, self.cuda)
 
-                if self.multi:
-                    outputs = self.C(images, task_idx)
-                else:
-                    outputs = self.C(images)
+
+                outputs = self.forward(images, task_idx)
 
                 _, predicted = torch.max(outputs, 1)
                 total = labels.size(0)
