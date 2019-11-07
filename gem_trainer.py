@@ -170,7 +170,6 @@ class gem_DCNN(object):
                     .format(self.model_seed, self.num_pre_tasks))
             self.C.load_state_dict(param_loaded)
 
-
     def visualization_init(self):
         if self.reset_env:
             self.delete_logs()
