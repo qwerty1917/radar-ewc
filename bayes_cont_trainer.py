@@ -90,6 +90,7 @@ class baye_DCNN(object):
         # Continual Learning
         self.continual = args.continual
         self.lamb = args.lamb
+        self.init_from_prehead = args.init_from_prehead
 
         # UCL
         self.beta = args.lamb
@@ -200,6 +201,18 @@ class baye_DCNN(object):
         else:
             print("=> no checkpoint found at '{}'".format(file_path))
 
+    def init_head(self, task_idx):
+        for n, p in self.C.named_parameters():
+            if n == 'last.{}.weight'.format(task_idx - 1):
+                prev_p_weight = p
+            elif n == 'last.{}.bias'.format(task_idx - 1):
+                prev_p_bias = p
+
+            if n == 'last.{}.weight'.format(task_idx):
+                p.data.copy_(prev_p_weight)
+            elif n == 'last.{}.bias'.format(task_idx):
+                p.data.copy_(prev_p_bias)
+
     def train(self):
         self.set_mode('train')
         min_loss = None
@@ -211,6 +224,10 @@ class baye_DCNN(object):
         while self.task_idx < self.num_tasks:
 
             data_loader = self.data_loader['task{}'.format(self.task_idx)]['train']
+
+            if (self.multi and self.init_from_prehead) and self.task_idx>0:
+                self.init_head(self.task_idx)
+
             if self.lr_decay:
                 best_loss = np.inf
                 best_model = deepcopy(self.C.state_dict())
