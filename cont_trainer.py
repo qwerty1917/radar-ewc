@@ -688,6 +688,8 @@ class cont_DCNN(object):
             # If "offline EWC", loop over all previous tasks (if "online EWC", [EWC_task_count]=1 so only 1 iteration)
             for task in range(1, self.task_count + 1):
                 for n, p in self.C.named_parameters():
+                    if self.multi and n.startswith('last'):
+                        break
                     if p.requires_grad:
                         # Retrieve stored mode (MAP estimate) and precision (Fisher Information matrix)
                         n = n.replace('.', '__')
@@ -709,6 +711,8 @@ class cont_DCNN(object):
             losses = 0
 
             for n, p in self.C.named_parameters():
+                if self.multi and n.startswith('last'):
+                    break
                 if p.requires_grad:
                     # Retrieve stored mode (MAP estimate) and precision (Fisher Information matrix)
                     n = n.replace('.', '__')
@@ -756,6 +760,8 @@ class cont_DCNN(object):
         if self.task_count > 0:
             losses = 0
             for n, p in self.C.named_parameters():
+                if self.multi and n.startswith('last'):
+                    break
                 if p.requires_grad:
                     # Retrieve previous parameter values and their normalized path integral (i.e., omega)
                     n = n.replace('.', '__')
@@ -863,6 +869,8 @@ class cont_DCNN(object):
         if self.task_count > 0:
             losses = 0
             for n, p in self.C.named_parameters():
+                if self.multi and n.startswith('last'):
+                    break
                 if p.requires_grad:
                     # Retrieve previous parameter values and their normalized path integral (i.e., omega)
                     n = n.replace('.', '__')
