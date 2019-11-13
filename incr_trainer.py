@@ -14,6 +14,7 @@ from dataloader import return_data
 from gan_trainer import WGAN
 from models.cnn import Dcnn
 from models.icarl import Icarl
+from models.gem_inc import GemInc
 from utils import cuda, make_log_name, check_log_dir, VisdomPlotter, VisdomImagesPlotter, set_seed, append_conf_mat_to_file
 
 
@@ -35,7 +36,7 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 
-class IcarlTrainer(object):
+class IncrementalTrainer(object):
     def __init__(self, args):
         self.args = args
 
@@ -65,31 +66,33 @@ class IcarlTrainer(object):
         self.visualization_init()
 
         # Network
-        self.icarl = None
+        self.model = None
         self.model_init()
 
-        # Dataset
-        self.data_loader, self.num_tasks, self.transform = return_data(args)
-
         # icarl
-        self.K = args.icarl_K
+        # self.K = args.icarl_K
         self.num_cls_per_task = args.icarl_num_cls_per_task
         self.feature_size = args.icarl_feature_size
 
     def model_init(self):
-        self.icarl = Icarl(args=self.args)
-        self.icarl.apply(weights_init)
+        if self.args.icarl:
+            self.model = Icarl(args=self.args)
+        elif self.args.gem_inc:
+            self.model = GemInc(args=self.args)
+        else:
+            raise ValueError("incremental learning should choose at least one method")
+        self.model.apply(weights_init)
 
-        self.icarl = cuda(self.icarl, self.args.cuda)
+        self.model = cuda(self.model, self.args.cuda)
 
         if self.multi_gpu:
-            self.icarl = nn.DataParallel(self.icarl).cuda()
+            self.model = nn.DataParallel(self.model).cuda()
 
     def set_mode(self, mode='train'):
         if mode == 'train':
-            self.icarl.train()
+            self.model.train()
         elif mode == 'eval':
-            self.icarl.eval()
+            self.model.eval()
         else:
             raise ('mode error. It should be either train or eval')
 
@@ -146,48 +149,24 @@ class IcarlTrainer(object):
             test_set = test_loader.dataset
 
             # Update representation via BackProp
-            self.icarl.update_representation(train_set,
+            self.model.update_representation(train_set,
                                              current_class_count=s+self.num_cls_per_task,
                                              train_loader=train_loader,
                                              test_loader=test_loader,
                                              line_plotter=self.line_plotter)
-            m = self.K // self.icarl.n_classes
 
-            # Reduce exemplar sets for known classes
-            if self.K != 0:
-                self.icarl.reduce_exemplar_sets(m)
-
-                # Construct exemplar sets for new classes
-                for y in range(self.icarl.n_known, self.icarl.n_classes):
-                    print("Constructing exemplar set for class-{}...".format(y+1))
-                    y_class_dataloader, _, _ = return_data(self.args, class_range=range(y, y+1))
-                    images_concat = None
-                    paths_concat = None
-                    for indices, images, _, paths in y_class_dataloader['train']:
-                        if images_concat is None:
-                            images_concat = images
-                            paths_concat = paths
-                        else:
-                            images_concat = np.concatenate((images_concat, images))
-                            paths_concat = np.concatenate((paths_concat, paths))
-                    self.icarl.construct_exemplar_set(paths_concat, images_concat, m)
-                    print("Done")
-
-                for y, P_y in enumerate(self.icarl.exemplar_sets):
-                    print("Exemplar set for class-{}: {}".format(y, P_y.shape))
-                    # show_images(P_y[:10])
+            # update exemplar sets for known classes
+            self.model.update_exemplar_sets()
 
             # n_known 값 업데이트
-            self.icarl.n_known = self.icarl.n_classes
-            print("iCaRL classes: {}".format(self.icarl.n_known))
-            print("iCaRL model last nodes: {}".format(self.icarl.fc.out_features))
+            self.model.update_n_known()
 
             # print train_set_accuracy
             total = 0.0
             correct = 0.0
             for indices, images, labels, _ in train_loader:
                 images = cuda(Variable(images), self.cuda)
-                preds = self.icarl.classify(images, transform)
+                preds = self.model.classify(images)
                 total += labels.size(0)
                 correct += (preds.data.cpu() == labels.data.cpu()).sum()
             train_acc = float(correct) / float(total)
@@ -199,7 +178,7 @@ class IcarlTrainer(object):
             correct = 0.0
             for indices, images, labels, _ in test_loader:
                 images = cuda(Variable(images), self.cuda)
-                preds = self.icarl.classify(images, transform)
+                preds = self.model.classify(images)
                 total += labels.size(0)
                 correct += (preds.data.cpu() == labels.data.cpu()).sum()
             test_acc = float(correct)/ float(total)
@@ -214,7 +193,7 @@ class IcarlTrainer(object):
 
                 for indices, images, labels, _ in log_test_loader:
                     images = cuda(Variable(images), self.cuda)
-                    preds = self.icarl.classify(images, transform)
+                    preds = self.model.classify(images)
                     total += labels.size(0)
                     correct += (preds.data.cpu() == labels.data.cpu()).sum()
                     for i in range(labels.data.cpu().size()[0]):

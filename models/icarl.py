@@ -1,25 +1,27 @@
+import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-import torch.nn.functional as F
-import numpy as np
 
+from dataloader import return_data
 from models.cnn import Dcnn
-from utils import cuda, set_seed
+from models.incremental_model import IncrementalModel
+from utils import cuda
 
 
-class Icarl(nn.Module):
+class Icarl(IncrementalModel):
     def __init__(self, args):
-        super(Icarl, self).__init__()
-        self.args = args
+        super(Icarl, self).__init__(args)
+        # self.args = args
 
-        set_seed(self.args.seed)
+        # set_seed(self.args.seed)
 
         # Network architecture
         self.feature_size = args.icarl_feature_size
-        self.feature_extractor = Dcnn(input_channel=1, incremental=True, num_classes=2)
+        self.feature_extractor = Dcnn(input_channel=1, num_classes=2)
 
         fc1_features = self.feature_extractor.fc_layers[0].in_features
         fc2_features = self.feature_size
@@ -38,6 +40,8 @@ class Icarl(nn.Module):
         # List containing exemplar_sets
         # Each exemplar_set is a np.array of N images
         # with shape (N, C, H, W)
+        self.K = args.icarl_K
+        self.m = self.K // self.n_classes
         self.exemplar_sets = []
         self.exemplar_path_sets = []
 
@@ -50,7 +54,7 @@ class Icarl(nn.Module):
         self.compute_means = True
         self.exemplar_means = []
 
-    def forward(self, x, normalize=False):
+    def forward(self, x):
         x = self.feature_extractor(x)
         x = self.bn(x)
         x = self.ReLU(x)
@@ -68,7 +72,7 @@ class Icarl(nn.Module):
         self.fc.weight.data[:out_features] = weight
         self.n_classes += n
 
-    def classify(self, x, transform=None):
+    def classify(self, x):
         if self.args.icarl_K == 0:
             images = cuda(Variable(x), self.args.cuda)
             outputs = F.sigmoid(self.forward(images))
@@ -147,6 +151,30 @@ class Icarl(nn.Module):
                 exemplar_features.append(features[i])
         self.exemplar_sets.append(np.array(exemplar_set))
         self.exemplar_path_sets.append(np.array(exemplar_path_set))
+
+    def update_exemplar_sets(self):
+        self.m = self.K // self.n_classes
+        if self.K != 0:
+            self.reduce_exemplar_sets(self.m)
+
+        # Construct exemplar sets for new classes
+        for y in range(self.n_known, self.n_classes):
+            print("Constructing exemplar set for class-{}...".format(y + 1))
+            y_class_dataloader, _, _ = return_data(self.args, class_range=range(y, y + 1))
+            images_concat = None
+            paths_concat = None
+            for indices, images, _, paths in y_class_dataloader['train']:
+                if images_concat is None:
+                    images_concat = images
+                    paths_concat = paths
+                else:
+                    images_concat = np.concatenate((images_concat, images))
+                    paths_concat = np.concatenate((paths_concat, paths))
+            self.construct_exemplar_set(paths_concat, images_concat, self.m)
+            print("Done")
+
+        for y, P_y in enumerate(self.exemplar_sets):
+            print("Exemplar set for class-{}: {}".format(y, P_y.shape))
 
     def reduce_exemplar_sets(self, m):
         for y, P_y in enumerate(self.exemplar_sets):
@@ -277,3 +305,8 @@ class Icarl(nn.Module):
                                           x=iteration,
                                           y=test_acc)
                 iteration += 1
+
+    def update_n_known(self):
+        self.n_known = self.n_classes
+        print("iCaRL classes: {}".format(self.n_known))
+        print("iCaRL model last nodes: {}".format(self.fc.out_features))

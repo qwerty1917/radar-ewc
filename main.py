@@ -3,7 +3,7 @@ import numpy as np
 import argparse
 
 from cont_trainer import DCNN
-from incr_trainer import IcarlTrainer
+from incr_trainer import IncrementalTrainer
 
 from utils import str2bool, set_seed
 
@@ -21,7 +21,7 @@ def main(args):
     if args.cnn_type == 'dcnn' and not args.icarl:
         net = DCNN(args)
     elif args.icarl:
-        net = IcarlTrainer(args)
+        net = IncrementalTrainer(args)
     else:
         raise ValueError('cnn_type should be one of DCNN,')
 
@@ -120,6 +120,12 @@ if __name__ == "__main__":
     parser.add_argument('--icarl_num_cls_per_task', default=1, type=int, help='number of added classes per task')
     parser.add_argument('--icarl_feature_size', default=128, type=int, help='feature extractor output size')
     parser.add_argument('--icarl_random_example', default=False, type=str2bool, help='random exemplar')
+
+    # gem-cls-incremental
+    parser.add_argument('--gem_inc', default=False, type=str2bool, help='GEM incremental')
+    parser.add_argument('--gem_inc_M', default=20, type=int, help='GEM inc memory size')
+    parser.add_argument('--gem_inc_mem_strength', default=0.5, type=float, help='GEM inc memory strength')
+    parser.add_argument('--gem_inc_num_cls_per_task', default=1, type=int, help='number of added classes per task')
 
     args = parser.parse_args()
 
