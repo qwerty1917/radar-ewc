@@ -650,10 +650,9 @@ class cont_DCNN(object):
             if p.requires_grad:
                 n = n.replace('.', '__')
                 # -mode (=MAP parameter estimate)
-                p_old = getattr(self.C, '{}_prev_task'.format(n))
                 # -precision (approximated by diagonal Fisher Information matrix)
-
                 if self.task_count > 0:
+                    p_old = getattr(self.C, '{}_prev_task'.format(n))
                     existing_values = getattr(self.C, '{}_estimated_fisher'.format(n))
                     p = fisher[n] * p + existing_values * p_old
                     fisher[n] = fisher[n] + existing_values
