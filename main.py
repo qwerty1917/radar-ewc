@@ -125,6 +125,7 @@ if __name__ == "__main__":
     parser.add_argument('--gem_inc', default=False, type=str2bool, help='GEM incremental')
     parser.add_argument('--gem_inc_M', default=20, type=int, help='GEM inc memory size')
     parser.add_argument('--gem_inc_mem_strength', default=0.5, type=float, help='GEM inc memory strength')
+    parser.add_argument('--gem_inc_n_tasks', default=6, type=int, help='GEM inc task number')
     parser.add_argument('--gem_inc_num_cls_per_task', default=1, type=int, help='number of added classes per task')
 
     args = parser.parse_args()
