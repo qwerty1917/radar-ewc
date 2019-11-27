@@ -35,7 +35,7 @@ class GemInc(IncrementalModel):
         # allocate episodic memory
         self.memory_data = cuda(torch.zeros([self.M, args.image_size, args.image_size], dtype=torch.float), self.cuda)
         self.memory_labs = cuda(torch.zeros([self.M], dtype=torch.long), self.cuda)
-        self.memory_n_per_class = int(self.M / self.n_start)
+        self.memory_n_per_task = self.M
 
         # allocate temporary synaptic memory
         self.grad_dims = []
@@ -83,16 +83,16 @@ class GemInc(IncrementalModel):
         self.update_grad_dims()
 
         # get dataloader
-        loader = DataLoader(dataset, batch_size=self.args.train_batch_size,
+        current_loader = DataLoader(dataset, batch_size=self.args.train_batch_size,
                             shuffle=True, num_workers=self.args.num_workers,
                             pin_memory=True, worker_init_fn=self._init_fn)
 
         # update memory
-        # TODO: update memory
+        self.update_exemplar_sets(dataset)
 
         # update params
         for epoch_i in range(self.args.epoch):
-            for i, (indices, images, labels, _) in enumerate(loader):
+            for i, (indices, images, labels, _) in enumerate(current_loader):
                 # compute grad on previous tasks
                 if len(self.observed_tasks) > 1:
                     for t_i, past_task in enumerate(self.observed_tasks):
@@ -114,8 +114,28 @@ class GemInc(IncrementalModel):
         self.old_task = self.cur_task
         self.cur_task += 1
 
-    def update_exemplar_sets(self):
-        pass
+    def update_exemplar_sets(self, dataset):
+        old_sample_n_per_task = self.memory_n_per_task
+        new_sample_n_per_task = self.M // self.cur_task
+
+        new_exemplar_data = cuda(torch.zeros_like(self.memory_data), self.cuda)
+        new_exemplar_labs = cuda(torch.zeros_like(self.memory_labs), self.cuda)
+
+        for old_task_i in self.observed_tasks:
+            for sample_i in range(new_sample_n_per_task):
+                old_sample_i = old_task_i * old_sample_n_per_task + sample_i
+                new_sample_i = old_task_i * new_sample_n_per_task + sample_i
+
+                new_exemplar_data[new_sample_i] = self.memory_data[old_sample_i]
+                new_exemplar_labs[new_sample_i] = self.memory_labs[old_sample_i]
+
+        # TODO: add current task datasets
+
+        self.memory_data = new_exemplar_data
+        self.memory_labs = new_exemplar_labs
+
+        self.memory_n_per_task = new_sample_n_per_task
+
 
     def update_n_known(self):
         pass
