@@ -1,7 +1,13 @@
+import numpy as np
+import quadprog
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
+from PIL import Image
+from torch.autograd import Variable
 from torch.utils.data import DataLoader
+from torchvision import transforms
 
 from models.cnn import Dcnn
 from models.incremental_model import IncrementalModel
@@ -40,20 +46,20 @@ class GemInc(IncrementalModel):
         # allocate temporary synaptic memory
         self.grad_dims = []
         self.update_grad_dims()
-        self.grads = cuda(torch.zeros([sum(self.grad_dims), self.n_tasks]), self.cuda)
+        self.grads = None
 
         # allocate counters
         self.observed_tasks = []
         self.n_outputs = self.n_start
         self.old_task = -1
         self.cur_task = 0
-        self.mem_cnt = 0
         self.nc_per_task = args.gem_inc_num_cls_per_task
 
-    def update_grad_dims(self):
+    def update_grad_dims_and_grads(self):
         self.grad_dims = []
         for param in self.parameters():
             self.grad_dims.append(param.data.numel())
+        self.grads = cuda(torch.zeros([sum(self.grad_dims), self.n_tasks]), self.cuda)
 
     def forward(self, x):
         output = self.net.forward(x)
@@ -75,6 +81,45 @@ class GemInc(IncrementalModel):
                 end = sum(self.grad_dims[:param_i + 1])
                 self.grads[begin:end, past_task].copy_(param.grad.data.view(-1))
 
+    def overwrite_grad(self, newgrad, grad_dims):
+        """
+            This is used to overwrite the gradients with a new gradient
+            vector, whenever violations occur.
+            pp: parameters
+            newgrad: corrected gradient
+            grad_dims: list storing number of parameters at each layer
+        """
+        cnt = 0
+        for param in self.parameters():
+            if param.grad is not None:
+                beg = 0 if cnt == 0 else sum(grad_dims[:cnt])
+                en = sum(grad_dims[:cnt + 1])
+                this_grad = newgrad[beg: en].contiguous().view(
+                    param.grad.data.size())
+                param.grad.data.copy_(this_grad)
+            cnt += 1
+
+    def project2cone2(self, gradient, memories, margin=0.5, eps=1e-3):
+        """
+            Solves the GEM dual QP described in the paper given a proposed
+            gradient "gradient", and a memory of task gradients "memories".
+            Overwrites "gradient" with the final projected update.
+            input:  gradient, p-vector
+            input:  memories, (t * p)-vector
+            output: x, p-vector
+        """
+        memories_np = memories.cpu().t().double().numpy()
+        gradient_np = gradient.cpu().contiguous().view(-1).double().numpy()
+        t = memories_np.shape[0]
+        P = np.dot(memories_np, memories_np.transpose())
+        P = 0.5 * (P + P.transpose()) + np.eye(t) * eps
+        q = np.dot(memories_np, gradient_np) * -1
+        G = np.eye(t)
+        h = np.zeros(t) + margin
+        v = quadprog.solve_qp(P, q, G, h)[0]
+        x = np.dot(v, memories_np) + gradient_np
+        gradient.copy_(torch.Tensor(x).view(-1, 1))
+
     def update_representation(self, dataset):
 
         # Increment number of weights in final fc layer
@@ -83,31 +128,60 @@ class GemInc(IncrementalModel):
         self.update_grad_dims()
 
         # get dataloader
-        current_loader = DataLoader(dataset, batch_size=self.args.train_batch_size,
+        current_task_loader = DataLoader(dataset, batch_size=self.args.train_batch_size,
                             shuffle=True, num_workers=self.args.num_workers,
                             pin_memory=True, worker_init_fn=self._init_fn)
 
         # update memory
-        self.update_exemplar_sets(dataset)
+        self.update_exemplar_sets(current_task_loader)
 
         # update params
         for epoch_i in range(self.args.epoch):
-            for i, (indices, images, labels, _) in enumerate(current_loader):
-                # compute grad on previous tasks
-                if len(self.observed_tasks) > 1:
-                    for t_i, past_task in enumerate(self.observed_tasks):
-                        self.zero_grad()
-                        class_begin = 0 if past_task == 0 else self.n_start - 1 + self.nc_per_task * past_task
-                        class_end = self.n_start if past_task == 0 else class_begin + self.nc_per_task * past_task
-                        memory_samples, memory_labels = self.get_memory_samples(class_begin, class_end)
-                        output = self.forawrd(memory_samples)
-                        past_task_loss = self.loss(output, memory_labels)
-                        past_task_loss.backward()
-                        self.store_grad(past_task)
-                # compute grad on current tasks
-                # TODO: compute gradients on current tasks
-                pass
+            # compute grad on previous tasks
+            if len(self.observed_tasks) > 1:
+                for t_i, past_task in enumerate(self.observed_tasks):
+                    self.zero_grad()
+                    class_begin = 0 if past_task == 0 else self.n_start - 1 + self.nc_per_task * past_task
+                    class_end = self.n_start if past_task == 0 else class_begin + self.nc_per_task * past_task
+                    memory_samples, memory_labels = self.get_memory_samples(class_begin, class_end)
+                    memory_samples = cuda(Variable(memory_samples), self.args.cuda)
+                    memory_labels = cuda(Variable(memory_samples), self.args.cuda)
+                    output = self.forawrd(memory_samples)
+                    past_task_loss = self.loss(output, memory_labels)
+                    past_task_loss.backward()
+                    self.store_grad(past_task)
 
+            # compute grad on current tasks
+            self.zero_grad()
+            for i, (indices, images, labels, _) in enumerate(current_task_loader):
+                # TODO: compute gradients on current tasks
+                images = cuda(Variable(images), self.args.cuda)
+                labels = cuda(Variable(torch.tensor(labels, dtype=torch.uint8)), self.args.cuda)
+
+                output = self.forward(images)
+                train_loss = self.loss(output, labels.type(torch.long))
+
+                train_loss.backward()
+
+                # TODO: check if gradient violated constraints
+                if len(self.observed_tasks) > 0:
+                    # copy gradient
+                    self.store_grad(self.cur_task)
+                    indx = torch.cuda.LongTensor(self.observed_tasks) if self.args.cuda \
+                        else torch.LongTensor(self.observed_tasks)
+                    dopt = torch.mm(self.grads[:,self.cur_task].unsqueeze(0),
+                                    self.grads.index_select(1, indx))
+
+                    if (dopt < 0).sum() != 0:
+                        self.project2cone2(self.grads[:, self.cur_task].unsqueeze(1),
+                                           self.grads.index_select(1, indx),
+                                           self.margin)
+                        # copy gradients back
+                        self.overwrite_grad(self.parameters,
+                                            self.grads[:, self.cur_task],
+                                            self.grad_dims)
+
+                self.opt.step()
 
         # update counters
         self.observed_tasks.append(self.cur_task)
@@ -129,7 +203,14 @@ class GemInc(IncrementalModel):
                 new_exemplar_data[new_sample_i] = self.memory_data[old_sample_i]
                 new_exemplar_labs[new_sample_i] = self.memory_labs[old_sample_i]
 
-        # TODO: add current task datasets
+        for i, path, label in enumerate(dataset):
+            if i < new_sample_n_per_task:
+                image = Image.open(path)
+                image = transforms.Compose([transforms.Scale(self.args.image_size), transforms.ToTensor()])(image).float()
+                image = image.squeeze()
+
+                new_exemplar_data[len(self.observed_tasks) * new_sample_n_per_task + i] = image
+                new_exemplar_labs[len(self.observed_tasks) * new_sample_n_per_task + i] = label
 
         self.memory_data = new_exemplar_data
         self.memory_labs = new_exemplar_labs
@@ -138,14 +219,18 @@ class GemInc(IncrementalModel):
 
 
     def update_n_known(self):
-        pass
+        self.n_known = self.n_classes
+        print("GEM icr classes: {}".format(self.n_known))
+        print("GEM icr model last nodes: {}".format(self.net.fc_layers[-1].out_features))
 
     def classify(self, x):
-        pass
+        images = cuda(Variable(x), self.args.cuda)
+        outputs = F.sigmoid(self.forward(images))
+        _, preds = torch.max(outputs, 1)
 
     def increment_classes(self, n):
         in_features = self.net.fc_layers[-1].in_features
-        out_features = self.net.fc_layers[-1].in_features
+        out_features = self.net.fc_layers[-1].out_features
 
         weight = self.net.fc_layers[-1].weight.data
 

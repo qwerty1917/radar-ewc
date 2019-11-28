@@ -92,6 +92,7 @@ class IncrementalTrainer(object):
         if mode == 'train':
             self.model.train()
         elif mode == 'eval':
+
             self.model.eval()
         else:
             raise ('mode error. It should be either train or eval')
