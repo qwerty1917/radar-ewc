@@ -168,6 +168,11 @@ def make_log_name(args):
                                                                                 args.icarl_feature_size,
                                                                                 args.icarl_fixed_rep,
                                                                                 args.icarl_random_example)
+    elif args.gem_inc:
+        log_name += '_gem_inc'
+        log_name += '_M{}_num_cls_per_task{}_mem_strength{}'.format(args.gem_inc_M,
+                                                                    args.gem_inc_num_cls_per_task,
+                                                                    args.gem_inc_mem_strength)
     else:
         log_name += '_fine'
 

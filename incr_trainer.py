@@ -156,9 +156,6 @@ class IncrementalTrainer(object):
                                              test_loader=test_loader,
                                              line_plotter=self.line_plotter)
 
-            # update exemplar sets for known classes
-            self.model.update_exemplar_sets()
-
             # n_known 값 업데이트
             self.model.update_n_known()
 

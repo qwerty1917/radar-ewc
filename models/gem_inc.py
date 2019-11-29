@@ -9,6 +9,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
+from dataloader import IcarlDataset
 from models.cnn import Dcnn
 from models.incremental_model import IncrementalModel
 from utils import cuda
@@ -20,6 +21,7 @@ class GemInc(IncrementalModel):
 
         self.n_known = 0
         self.n_start = 2
+        self.n_classes = self.n_start
         self.n_tasks = args.gem_inc_n_tasks
 
         self.M = args.gem_inc_M
@@ -45,7 +47,7 @@ class GemInc(IncrementalModel):
 
         # allocate temporary synaptic memory
         self.grad_dims = []
-        self.update_grad_dims()
+        self.update_grad_dims_and_grads()
         self.grads = None
 
         # allocate counters
@@ -120,12 +122,15 @@ class GemInc(IncrementalModel):
         x = np.dot(v, memories_np) + gradient_np
         gradient.copy_(torch.Tensor(x).view(-1, 1))
 
-    def update_representation(self, dataset):
+    def _init_fn(self, worker_id):
+        np.random.seed(int(self.args.seed))
+
+    def update_representation(self, dataset, current_class_count, train_loader, test_loader, line_plotter):
 
         # Increment number of weights in final fc layer
         nodes_to_add = self.n_start + self.cur_task * self.nc_per_task - self.n_outputs
         self.n_outputs = self.increment_classes(nodes_to_add)
-        self.update_grad_dims()
+        self.update_grad_dims_and_grads()
 
         # get dataloader
         current_task_loader = DataLoader(dataset, batch_size=self.args.train_batch_size,
@@ -133,7 +138,7 @@ class GemInc(IncrementalModel):
                             pin_memory=True, worker_init_fn=self._init_fn)
 
         # update memory
-        self.update_exemplar_sets(current_task_loader)
+        self.update_exemplar_sets(dataset)
 
         # update params
         for epoch_i in range(self.args.epoch):
@@ -156,7 +161,7 @@ class GemInc(IncrementalModel):
             for i, (indices, images, labels, _) in enumerate(current_task_loader):
                 # TODO: compute gradients on current tasks
                 images = cuda(Variable(images), self.args.cuda)
-                labels = cuda(Variable(torch.tensor(labels, dtype=torch.uint8)), self.args.cuda)
+                labels = cuda(Variable(labels), self.args.cuda)
 
                 output = self.forward(images)
                 train_loss = self.loss(output, labels.type(torch.long))
@@ -177,8 +182,7 @@ class GemInc(IncrementalModel):
                                            self.grads.index_select(1, indx),
                                            self.margin)
                         # copy gradients back
-                        self.overwrite_grad(self.parameters,
-                                            self.grads[:, self.cur_task],
+                        self.overwrite_grad(self.grads[:, self.cur_task],
                                             self.grad_dims)
 
                 self.opt.step()
@@ -188,9 +192,9 @@ class GemInc(IncrementalModel):
         self.old_task = self.cur_task
         self.cur_task += 1
 
-    def update_exemplar_sets(self, dataset):
+    def update_exemplar_sets(self, dataset: IcarlDataset):
         old_sample_n_per_task = self.memory_n_per_task
-        new_sample_n_per_task = self.M // self.cur_task
+        new_sample_n_per_task = self.M // (self.cur_task + 1)
 
         new_exemplar_data = cuda(torch.zeros_like(self.memory_data), self.cuda)
         new_exemplar_labs = cuda(torch.zeros_like(self.memory_labs), self.cuda)
@@ -203,20 +207,22 @@ class GemInc(IncrementalModel):
                 new_exemplar_data[new_sample_i] = self.memory_data[old_sample_i]
                 new_exemplar_labs[new_sample_i] = self.memory_labs[old_sample_i]
 
-        for i, path, label in enumerate(dataset):
-            if i < new_sample_n_per_task:
-                image = Image.open(path)
-                image = transforms.Compose([transforms.Scale(self.args.image_size), transforms.ToTensor()])(image).float()
-                image = image.squeeze()
+        new_task_sample_cnt = 0
 
-                new_exemplar_data[len(self.observed_tasks) * new_sample_n_per_task + i] = image
-                new_exemplar_labs[len(self.observed_tasks) * new_sample_n_per_task + i] = label
+        for index, image, label, path  in dataset:
+            if new_task_sample_cnt < new_sample_n_per_task:
+                new_exemplar_data[len(self.observed_tasks) * new_sample_n_per_task + new_task_sample_cnt] = image
+                new_exemplar_labs[len(self.observed_tasks) * new_sample_n_per_task + new_task_sample_cnt] = label
+            else:
+                break
+
+            new_task_sample_cnt += 1
 
         self.memory_data = new_exemplar_data
         self.memory_labs = new_exemplar_labs
 
         self.memory_n_per_task = new_sample_n_per_task
-
+        print("Exemplar set updated.")
 
     def update_n_known(self):
         self.n_known = self.n_classes
@@ -227,6 +233,8 @@ class GemInc(IncrementalModel):
         images = cuda(Variable(x), self.args.cuda)
         outputs = F.sigmoid(self.forward(images))
         _, preds = torch.max(outputs, 1)
+
+        return preds
 
     def increment_classes(self, n):
         in_features = self.net.fc_layers[-1].in_features

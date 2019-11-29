@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -152,7 +154,7 @@ class Icarl(IncrementalModel):
         self.exemplar_sets.append(np.array(exemplar_set))
         self.exemplar_path_sets.append(np.array(exemplar_path_set))
 
-    def update_exemplar_sets(self):
+    def update_exemplar_sets(self, dataset=None):
         self.m = self.K // self.n_classes
         if self.K != 0:
             self.reduce_exemplar_sets(self.m)
@@ -192,6 +194,7 @@ class Icarl(IncrementalModel):
         np.random.seed(int(self.args.seed))
 
     def update_representation(self, dataset, current_class_count, train_loader, test_loader, line_plotter):
+        current_task_dataset = copy.deepcopy(dataset)
         self.compute_means = True
 
         # Increment number of weights in final fc layer
@@ -305,6 +308,9 @@ class Icarl(IncrementalModel):
                                           x=iteration,
                                           y=test_acc)
                 iteration += 1
+
+        # update memory
+        self.update_exemplar_sets(dataset=current_task_dataset)
 
     def update_n_known(self):
         self.n_known = self.n_classes

@@ -18,9 +18,9 @@ def main(args):
     np.set_printoptions(precision=4)
     torch.set_printoptions(precision=4)
 
-    if args.cnn_type == 'dcnn' and not args.icarl:
+    if args.cnn_type == 'dcnn' and not args.class_incremental:
         net = DCNN(args)
-    elif args.icarl:
+    elif args.class_incremental:
         net = IncrementalTrainer(args)
     else:
         raise ValueError('cnn_type should be one of DCNN,')
