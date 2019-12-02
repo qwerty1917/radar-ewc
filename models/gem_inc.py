@@ -41,7 +41,7 @@ class GemInc(IncrementalModel):
         self.cuda = args.cuda
 
         # allocate episodic memory
-        self.memory_data = cuda(torch.zeros([self.M, args.image_size, args.image_size], dtype=torch.float), self.cuda)
+        self.memory_data = cuda(torch.zeros([self.M, args.channel, args.image_size, args.image_size], dtype=torch.float), self.cuda)
         self.memory_labs = cuda(torch.zeros([self.M], dtype=torch.long), self.cuda)
         self.memory_n_per_task = self.M
 
@@ -68,15 +68,15 @@ class GemInc(IncrementalModel):
         return output
 
     def get_memory_samples(self, class_begin, class_end):
-        sample_begin = class_begin * self.memory_n_per_class
-        sample_end = class_end * self.memory_n_per_class
+        sample_begin = class_begin * self.memory_n_per_task
+        sample_end = class_end * self.memory_n_per_task
         sample_images = self.memory_data[sample_begin:sample_end]
         sample_labels = self.memory_labs[sample_begin:sample_end]
 
         return sample_images, sample_labels
 
     def store_grad(self, past_task):
-        self.grads[:, past_task].fill(0.0)
+        self.grads[:, past_task].fill_(0.0)
         for param_i, param in enumerate(self.parameters()):
             if param.grad is not None:
                 begin = 0 if param_i == 0 else sum(self.grad_dims[:param_i])
@@ -143,23 +143,25 @@ class GemInc(IncrementalModel):
         # update params
         for epoch_i in range(self.args.epoch):
             # compute grad on previous tasks
-            if len(self.observed_tasks) > 1:
+            if len(self.observed_tasks) > 0:
                 for t_i, past_task in enumerate(self.observed_tasks):
                     self.zero_grad()
-                    class_begin = 0 if past_task == 0 else self.n_start - 1 + self.nc_per_task * past_task
-                    class_end = self.n_start if past_task == 0 else class_begin + self.nc_per_task * past_task
-                    memory_samples, memory_labels = self.get_memory_samples(class_begin, class_end)
+                    task_begin = 0 if past_task == 0 else self.n_start - 1 + self.nc_per_task * past_task
+                    task_end = self.n_start if past_task == 0 else task_begin + self.nc_per_task * past_task
+                    memory_samples, memory_labels = self.get_memory_samples(task_begin, task_end)
                     memory_samples = cuda(Variable(memory_samples), self.args.cuda)
-                    memory_labels = cuda(Variable(memory_samples), self.args.cuda)
-                    output = self.forawrd(memory_samples)
+                    memory_labels = cuda(Variable(memory_labels), self.args.cuda)
+                    output = self.forward(memory_samples)
                     past_task_loss = self.loss(output, memory_labels)
                     past_task_loss.backward()
                     self.store_grad(past_task)
+            else:
+                print("# no observed tasks yet")
 
             # compute grad on current tasks
             self.zero_grad()
             for i, (indices, images, labels, _) in enumerate(current_task_loader):
-                # TODO: compute gradients on current tasks
+                # compute gradients on current tasks
                 images = cuda(Variable(images), self.args.cuda)
                 labels = cuda(Variable(labels), self.args.cuda)
 
@@ -168,7 +170,7 @@ class GemInc(IncrementalModel):
 
                 train_loss.backward()
 
-                # TODO: check if gradient violated constraints
+                # check if gradient violated constraints
                 if len(self.observed_tasks) > 0:
                     # copy gradient
                     self.store_grad(self.cur_task)
@@ -209,7 +211,7 @@ class GemInc(IncrementalModel):
 
         new_task_sample_cnt = 0
 
-        for index, image, label, path  in dataset:
+        for index, image, label, path in dataset:
             if new_task_sample_cnt < new_sample_n_per_task:
                 new_exemplar_data[len(self.observed_tasks) * new_sample_n_per_task + new_task_sample_cnt] = image
                 new_exemplar_labs[len(self.observed_tasks) * new_sample_n_per_task + new_task_sample_cnt] = label
