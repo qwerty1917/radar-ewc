@@ -55,7 +55,8 @@ class GemInc(IncrementalModel):
         self.nc_per_task = args.gem_inc_num_cls_per_task
 
         # GPU
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        print("# device: {}".format(self.device))
 
     def update_grad_dims_and_grads(self):
         self.grad_dims = []
