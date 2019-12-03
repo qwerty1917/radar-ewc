@@ -59,6 +59,7 @@ class GemInc(IncrementalModel):
             print("# CUDA available.")
             self.net.cuda()
             self.device = torch.device("cuda:0")
+            self.net = self.net.to(self.device)
         print("# device: {}".format(self.device))
 
     def update_grad_dims_and_grads(self):
@@ -69,8 +70,6 @@ class GemInc(IncrementalModel):
 
     def forward(self, x):
         x = cuda(x, self.args.cuda).to(self.device)
-        print("# x is cuda: {}".format(x.is_cuda))
-        print("# net is cuda: {}".format(self.net.is_cuda))
         output = self.net.forward(x)
         return output
 
