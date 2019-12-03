@@ -58,8 +58,8 @@ class GemInc(IncrementalModel):
         if self.args.cuda and torch.cuda.is_available():
             print("# CUDA available.")
             self.net.cuda()
-            self.device = torch.device("cuda:0")
-            self.net = self.net.to(self.device)
+            # self.device = torch.device("cuda:0")
+            # self.net = self.net.to(self.device)
 
     def update_grad_dims_and_grads(self):
         self.grad_dims = []
