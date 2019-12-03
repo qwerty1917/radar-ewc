@@ -149,7 +149,7 @@ class IncrementalTrainer(object):
             train_set = train_loader.dataset
             test_set = test_loader.dataset
 
-            print("# current_task: {}".format(self.model.cur_task + 1))
+            print("# n_known: {}".format(self.model.n_known + 1))
 
             # Update representation via BackProp
             self.model.update_representation(train_set,
