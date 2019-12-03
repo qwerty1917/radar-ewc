@@ -161,8 +161,6 @@ class GemInc(IncrementalModel):
                     past_task_loss = self.loss(output, memory_labels)
                     past_task_loss.backward()
                     self.store_grad(past_task)
-            else:
-                print("# no observed tasks yet")
 
             # compute grad on current tasks
             self.zero_grad()
