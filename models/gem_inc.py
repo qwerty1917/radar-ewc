@@ -69,6 +69,8 @@ class GemInc(IncrementalModel):
 
     def forward(self, x):
         x = cuda(x, self.args.cuda).to(self.device)
+        print("# x is cuda: {}".format(x.is_cuda))
+        print("# net is cuda: {}".format(self.net.is_cuda))
         output = self.net.forward(x)
         return output
 
