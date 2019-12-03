@@ -60,7 +60,6 @@ class GemInc(IncrementalModel):
             self.net.cuda()
             self.device = torch.device("cuda:0")
             self.net = self.net.to(self.device)
-        print("# device: {}".format(self.device))
 
     def update_grad_dims_and_grads(self):
         self.grad_dims = []
@@ -69,7 +68,6 @@ class GemInc(IncrementalModel):
         self.grads = cuda(torch.zeros([sum(self.grad_dims), self.n_tasks]), self.args.cuda)
 
     def forward(self, x):
-        x = cuda(x, self.args.cuda).to(self.device)
         output = self.net.forward(x)
         return output
 
@@ -151,7 +149,7 @@ class GemInc(IncrementalModel):
         # update params
         for epoch_i in range(self.args.epoch):
             # compute grad on previous tasks
-            if len(self.observed_tasks) > 0:
+            if len(self.observed_tasks) > 0 and self.M > 0:
                 for t_i, past_task in enumerate(self.observed_tasks):
                     self.zero_grad()
                     task_begin = 0 if past_task == 0 else self.n_start - 1 + self.nc_per_task * past_task
