@@ -177,7 +177,7 @@ class GemInc(IncrementalModel):
                 train_loss.backward()
 
                 # check if gradient violated constraints
-                if len(self.observed_tasks) > 0:
+                if len(self.observed_tasks) > 0 and self.M > 0:
                     # copy gradient
                     self.store_grad(self.cur_task)
                     indx = torch.cuda.LongTensor(self.observed_tasks) if self.args.cuda \
