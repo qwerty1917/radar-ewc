@@ -61,6 +61,7 @@ class GemInc(IncrementalModel):
         self.grads = cuda(torch.zeros([sum(self.grad_dims), self.n_tasks]), self.args.cuda)
 
     def forward(self, x):
+        x = cuda(x, self.args.cuda)
         output = self.net.forward(x)
         return output
 
