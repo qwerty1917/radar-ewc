@@ -37,12 +37,9 @@ class GemInc(IncrementalModel):
         # Opt
         self.opt = optim.SGD(self.parameters(), lr=args.lr)
 
-        # GPU
-        self.cuda = args.cuda
-
         # allocate episodic memory
-        self.memory_data = cuda(torch.zeros([self.M, args.channel, args.image_size, args.image_size], dtype=torch.float), self.cuda)
-        self.memory_labs = cuda(torch.zeros([self.M], dtype=torch.long), self.cuda)
+        self.memory_data = cuda(torch.zeros([self.M, args.channel, args.image_size, args.image_size], dtype=torch.float), self.args.cuda)
+        self.memory_labs = cuda(torch.zeros([self.M], dtype=torch.long), self.args.cuda)
         self.memory_n_per_task = self.M
 
         # allocate temporary synaptic memory
@@ -61,7 +58,7 @@ class GemInc(IncrementalModel):
         self.grad_dims = []
         for param in self.parameters():
             self.grad_dims.append(param.data.numel())
-        self.grads = cuda(torch.zeros([sum(self.grad_dims), self.n_tasks]), self.cuda)
+        self.grads = cuda(torch.zeros([sum(self.grad_dims), self.n_tasks]), self.args.cuda)
 
     def forward(self, x):
         output = self.net.forward(x)
@@ -198,8 +195,8 @@ class GemInc(IncrementalModel):
         old_sample_n_per_task = self.memory_n_per_task
         new_sample_n_per_task = self.M // (self.cur_task + 1)
 
-        new_exemplar_data = cuda(torch.zeros_like(self.memory_data), self.cuda)
-        new_exemplar_labs = cuda(torch.zeros_like(self.memory_labs), self.cuda)
+        new_exemplar_data = cuda(torch.zeros_like(self.memory_data), self.args.cuda)
+        new_exemplar_labs = cuda(torch.zeros_like(self.memory_labs), self.args.cuda)
 
         for old_task_i in self.observed_tasks:
             for sample_i in range(new_sample_n_per_task):
