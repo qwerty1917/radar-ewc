@@ -56,6 +56,7 @@ class GemInc(IncrementalModel):
 
         # GPU
         if self.args.cuda and torch.cuda.is_available():
+            print("# CUDA available.")
             self.net.cuda()
             self.device = torch.device("cuda:0")
         print("# device: {}".format(self.device))
