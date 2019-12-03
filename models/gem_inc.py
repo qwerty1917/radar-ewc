@@ -137,6 +137,8 @@ class GemInc(IncrementalModel):
         nodes_to_add = self.n_start + self.cur_task * self.nc_per_task - self.n_outputs
         self.n_outputs = self.increment_classes(nodes_to_add)
         self.update_grad_dims_and_grads()
+        if self.args.cuda:
+            self.cuda()
 
         # get dataloader
         current_task_loader = DataLoader(dataset, batch_size=self.args.train_batch_size,
