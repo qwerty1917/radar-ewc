@@ -54,6 +54,9 @@ class GemInc(IncrementalModel):
         self.cur_task = 0
         self.nc_per_task = args.gem_inc_num_cls_per_task
 
+        # GPU
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     def update_grad_dims_and_grads(self):
         self.grad_dims = []
         for param in self.parameters():
@@ -61,7 +64,7 @@ class GemInc(IncrementalModel):
         self.grads = cuda(torch.zeros([sum(self.grad_dims), self.n_tasks]), self.args.cuda)
 
     def forward(self, x):
-        x = cuda(x, self.args.cuda)
+        x = cuda(x, self.args.cuda).to(self.device)
         output = self.net.forward(x)
         return output
 
