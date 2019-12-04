@@ -27,6 +27,7 @@ class GemInc(IncrementalModel):
         self.M = args.gem_inc_M
         self.m = self.M / self.n_start
         self.margin = args.gem_inc_mem_strength
+        self.gradient_scale = args.gem_inc_gradient_scale
 
         # Network architecture
         self.net = Dcnn(input_channel=1, num_classes=2)
@@ -68,7 +69,7 @@ class GemInc(IncrementalModel):
         output = self.net.forward(x)
         return output
 
-    def get_memory_samples(self, class_begin, class_end):
+    def get_memory_samples(self, class_begin, class_end):  # TODO: task_begin, task_end 로 수정
         sample_begin = class_begin * self.memory_n_per_task
         sample_end = class_end * self.memory_n_per_task
         sample_images = self.memory_data[sample_begin:sample_end]
@@ -102,7 +103,7 @@ class GemInc(IncrementalModel):
                 param.grad.data.copy_(this_grad)
             cnt += 1
 
-    def project2cone2(self, gradient, memories, margin=0.5, eps=1e-3):
+    def project2cone2(self, gradient, memories, margin=0.5, gradient_scale=1, eps=1e-3):
         """
             Solves the GEM dual QP described in the paper given a proposed
             gradient "gradient", and a memory of task gradients "memories".
@@ -112,7 +113,7 @@ class GemInc(IncrementalModel):
             output: x, p-vector
         """
         memories_np = memories.cpu().t().double().numpy()
-        gradient_np = gradient.cpu().contiguous().view(-1).double().numpy()
+        gradient_np = gradient.cpu().contiguous().view(-1).double().numpy() * gradient_scale
         t = memories_np.shape[0]
         P = np.dot(memories_np, memories_np.transpose())
         P = 0.5 * (P + P.transpose()) + np.eye(t) * eps
@@ -183,7 +184,8 @@ class GemInc(IncrementalModel):
                     if (dopt < 0).sum() != 0:
                         self.project2cone2(self.grads[:, self.cur_task].unsqueeze(1),
                                            self.grads.index_select(1, indx),
-                                           self.margin)
+                                           self.margin,
+                                           self.gradient_scale)
                         # copy gradients back
                         self.overwrite_grad(self.grads[:, self.cur_task],
                                             self.grad_dims)
