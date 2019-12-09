@@ -41,7 +41,7 @@ class GemInc(IncrementalModel):
         # allocate episodic memory
         self.memory_data = cuda(torch.zeros([self.M, args.channel, args.image_size, args.image_size], dtype=torch.float), self.args.cuda)
         self.memory_labs = cuda(torch.zeros([self.M], dtype=torch.long), self.args.cuda)
-        self.memory_n_per_task = self.M
+        self.memory_n_per_class = self.M
 
         # allocate temporary synaptic memory
         self.grad_dims = []
@@ -70,8 +70,8 @@ class GemInc(IncrementalModel):
         return output
 
     def get_memory_samples(self, class_begin, class_end):  # TODO: task_begin, task_end 로 수정
-        sample_begin = class_begin * self.memory_n_per_task
-        sample_end = class_end * self.memory_n_per_task
+        sample_begin = class_begin * self.memory_n_per_class
+        sample_end = class_end * self.memory_n_per_class
         sample_images = self.memory_data[sample_begin:sample_end]
         sample_labels = self.memory_labs[sample_begin:sample_end]
 
@@ -150,9 +150,9 @@ class GemInc(IncrementalModel):
             if len(self.observed_tasks) > 0 and self.M > 0:
                 for t_i, past_task in enumerate(self.observed_tasks):
                     self.zero_grad()
-                    task_begin = 0 if past_task == 0 else self.n_start - 1 + self.nc_per_task * past_task
-                    task_end = self.n_start if past_task == 0 else task_begin + self.nc_per_task * past_task
-                    memory_samples, memory_labels = self.get_memory_samples(task_begin, task_end)
+                    class_begin = 0 if past_task == 0 else self.n_start - 1 + self.nc_per_task * past_task
+                    class_end = self.n_start if past_task == 0 else class_begin + self.nc_per_task * past_task
+                    memory_samples, memory_labels = self.get_memory_samples(class_begin, class_end)
                     memory_samples = cuda(Variable(memory_samples), self.args.cuda)
                     memory_labels = cuda(Variable(memory_labels), self.args.cuda)
                     output = self.forward(memory_samples)
@@ -198,35 +198,55 @@ class GemInc(IncrementalModel):
         self.cur_task += 1
 
     def update_exemplar_sets(self, dataset: IcarlDataset):
-        old_sample_n_per_task = self.memory_n_per_task
-        new_sample_n_per_task = self.M // (self.cur_task + 1)
+        old_class_n = self.n_start + max(0, (self.cur_task - 1) * self.nc_per_task)
+        new_class_n = self.n_start + self.cur_task * self.nc_per_task
+
+        old_sample_n_per_class = self.M // old_class_n
+        new_sample_n_per_class = self.M // new_class_n
 
         new_exemplar_data = cuda(torch.zeros_like(self.memory_data), self.args.cuda)
         new_exemplar_labs = cuda(torch.zeros_like(self.memory_labs), self.args.cuda)
 
         for old_task_i in self.observed_tasks:
-            for sample_i in range(new_sample_n_per_task):
-                old_sample_i = old_task_i * old_sample_n_per_task + sample_i
-                new_sample_i = old_task_i * new_sample_n_per_task + sample_i
 
-                new_exemplar_data[new_sample_i] = self.memory_data[old_sample_i]
-                new_exemplar_labs[new_sample_i] = self.memory_labs[old_sample_i]
-
-        new_task_sample_cnt = 0
-
-        for index, image, label, path in dataset:
-            if new_task_sample_cnt < new_sample_n_per_task:
-                new_exemplar_data[len(self.observed_tasks) * new_sample_n_per_task + new_task_sample_cnt] = image
-                new_exemplar_labs[len(self.observed_tasks) * new_sample_n_per_task + new_task_sample_cnt] = label
+            if old_task_i == 0:
+                classes_on_task_i = list(range(self.n_start))
             else:
-                break
+                class_start = self.n_start + (old_task_i - 1) * self.nc_per_task
+                class_end = self.n_start + old_task_i * self.nc_per_task
+                classes_on_task_i = list(range(class_start, class_end))
 
-            new_task_sample_cnt += 1
+            for class_idx in classes_on_task_i:
+                for sample_i in range(new_sample_n_per_class):
+                    old_sample_i = class_idx * old_sample_n_per_class + sample_i
+                    new_sample_i = class_idx * new_sample_n_per_class + sample_i
+
+                    new_exemplar_data[new_sample_i] = self.memory_data[old_sample_i]
+                    new_exemplar_labs[new_sample_i] = self.memory_labs[old_sample_i]
+
+        cur_task_class_start = self.n_start + (self.cur_task - 1) * self.nc_per_task
+        cur_task_class_end = self.n_start + self.cur_task * self.nc_per_task
+        classes_on_cur_task = range(self.n_start) if self.cur_task == 0 else range(cur_task_class_start, cur_task_class_end)
+
+        for class_idx in classes_on_cur_task:
+            new_class_sample_cnt = 0
+
+            sample_start_pos = class_idx * new_sample_n_per_class
+
+            for index, image, label, path in dataset:
+                if new_class_sample_cnt < new_sample_n_per_class:
+                    if label == class_idx:
+                        new_exemplar_data[sample_start_pos + new_class_sample_cnt] = image
+                        new_exemplar_labs[sample_start_pos + new_class_sample_cnt] = label
+
+                        new_class_sample_cnt += 1
+                else:
+                    break
 
         self.memory_data = new_exemplar_data
         self.memory_labs = new_exemplar_labs
 
-        self.memory_n_per_task = new_sample_n_per_task
+        self.memory_n_per_class = new_sample_n_per_class
         print("Exemplar set updated.")
 
     def update_n_known(self):
