@@ -28,6 +28,7 @@ class GemInc(IncrementalModel):
         self.m = self.M / self.n_start
         self.margin = args.gem_inc_mem_strength
         self.gradient_scale = args.gem_inc_gradient_scale
+        self.prj_except_last = args.gem_inc_prj_except_last_fc
 
         # Network architecture
         self.net = Dcnn(input_channel=1, num_classes=2)
@@ -61,8 +62,9 @@ class GemInc(IncrementalModel):
 
     def update_grad_dims_and_grads(self):
         self.grad_dims = []
-        for param in self.parameters():
-            self.grad_dims.append(param.data.numel())
+        for p_name, param in self.named_parameters():
+            if ("output_layer" not in p_name) or not self.prj_except_last:
+                self.grad_dims.append(param.data.numel())
         self.grads = cuda(torch.zeros([sum(self.grad_dims), self.n_tasks]), self.args.cuda)
 
     def forward(self, x):
@@ -79,11 +81,12 @@ class GemInc(IncrementalModel):
 
     def store_grad(self, past_task):
         self.grads[:, past_task].fill_(0.0)
-        for param_i, param in enumerate(self.parameters()):
-            if param.grad is not None:
-                begin = 0 if param_i == 0 else sum(self.grad_dims[:param_i])
-                end = sum(self.grad_dims[:param_i + 1])
-                self.grads[begin:end, past_task].copy_(param.grad.data.view(-1))
+        for param_i, p_name_p_tuple in enumerate(self.named_parameters()):
+            if ("output_layer" not in p_name_p_tuple[0]) or not self.prj_except_last:
+                if p_name_p_tuple[1].grad is not None:
+                    begin = 0 if param_i == 0 else sum(self.grad_dims[:param_i])
+                    end = sum(self.grad_dims[:param_i + 1])
+                    self.grads[begin:end, past_task].copy_(p_name_p_tuple[1].grad.data.view(-1))
 
     def overwrite_grad(self, newgrad, grad_dims):
         """
@@ -94,14 +97,15 @@ class GemInc(IncrementalModel):
             grad_dims: list storing number of parameters at each layer
         """
         cnt = 0
-        for param in self.parameters():
-            if param.grad is not None:
-                beg = 0 if cnt == 0 else sum(grad_dims[:cnt])
-                en = sum(grad_dims[:cnt + 1])
-                this_grad = newgrad[beg: en].contiguous().view(
-                    param.grad.data.size())
-                param.grad.data.copy_(this_grad)
-            cnt += 1
+        for p_name, param in self.named_parameters():
+            if ("output_layer" not in p_name) or not self.prj_except_last:
+                if param.grad is not None:
+                    beg = 0 if cnt == 0 else sum(grad_dims[:cnt])
+                    en = sum(grad_dims[:cnt + 1])
+                    this_grad = newgrad[beg: en].contiguous().view(
+                        param.grad.data.size())
+                    param.grad.data.copy_(this_grad)
+                cnt += 1
 
     def project2cone2(self, gradient, memories, margin=0.5, gradient_scale=1, eps=1e-3):
         """

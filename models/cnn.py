@@ -40,10 +40,12 @@ class Dcnn(nn.Module):
             nn.Linear(128, 128),
             nn.ReLU(),
             nn.Dropout(0.4),
-
-            # State (num_classes)
-            nn.Linear(128, num_classes)
         )
+
+        # State (num_classes)
+        self.fc_layers.add_module('output_layer', nn.Linear(128, num_classes))
+
+
 
     def forward(self, x):
         x = self.conv_layers(x)

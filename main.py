@@ -128,6 +128,7 @@ if __name__ == "__main__":
     parser.add_argument('--gem_inc_gradient_scale', default=1, type=float, help='GEM inc current gradient scale')
     parser.add_argument('--gem_inc_n_tasks', default=6, type=int, help='GEM inc task number')
     parser.add_argument('--gem_inc_num_cls_per_task', default=1, type=int, help='number of added classes per task')
+    parser.add_argument('--gem_inc_prj_except_last_fc', default=False, type=str2bool, help='project gradient except output layer')
 
     args = parser.parse_args()
 
