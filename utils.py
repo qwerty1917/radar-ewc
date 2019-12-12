@@ -170,10 +170,11 @@ def make_log_name(args):
                                                                                 args.icarl_random_example)
     elif args.gem_inc:
         log_name += '_gem_inc'
-        log_name += '_M{}_num_cls_per_task{}_mem_strength{}_grad_scale{}'.format(args.gem_inc_M,
-                                                                                 args.gem_inc_num_cls_per_task,
-                                                                                 args.gem_inc_mem_strength,
-                                                                                 args.gem_inc_gradient_scale)
+        log_name += '_M{}_num_cls_per_task{}_mem_strength{}_grad_scale{}_prj_except_last_fc{}'.format(args.gem_inc_M,
+                                                                                                      args.gem_inc_num_cls_per_task,
+                                                                                                      args.gem_inc_mem_strength,
+                                                                                                      args.gem_inc_gradient_scale,
+                                                                                                      args.gem_inc_prj_except_last_fc)
     else:
         log_name += '_fine'
 
