@@ -48,7 +48,7 @@ class Icarl(IncrementalModel):
         self.exemplar_path_sets = []
 
         # Learning method
-        self.cls_loss = nn.CrossEntropyLoss()
+        self.cls_loss = nn.BCELoss()
         self.dist_loss = nn.BCELoss()
         self.optimizer = optim.Adam(self.parameters(), lr=args.lr)
 
@@ -218,7 +218,8 @@ class Icarl(IncrementalModel):
         for indices, images, labels, _ in loader:
             images = cuda(Variable(images), self.args.cuda)
             indices = cuda(indices, self.args.cuda)
-            g = F.sigmoid(self.forward(images))
+            g = self.forward(images)
+            g = F.sigmoid(g)
             q[indices] = g.data
         q = cuda(Variable(q), self.args.cuda)
 
@@ -229,14 +230,17 @@ class Icarl(IncrementalModel):
         for epoch_i in range(self.args.epoch):
             for i, (indices, images, labels, _) in enumerate(loader):
                 images = cuda(Variable(images), self.args.cuda)
-                labels = cuda(Variable(torch.tensor(labels, dtype=torch.uint8)), self.args.cuda)
                 indices = cuda(indices, self.args.cuda)
+
+                labels_onehot = torch.zeros(labels.size()[0], labels.max()+1).scatter_(1, labels.unsqueeze(1), 1.)
+                labels_onehot = cuda(labels_onehot, self.args.cuda)
 
                 optimizer.zero_grad()
                 g = self.forward(images)
+                g = F.sigmoid(g)
 
                 # Classification loss for new classes
-                train_loss = self.cls_loss(g, labels.type(torch.long))
+                train_loss = self.cls_loss(g, labels_onehot.type(torch.float))
                 # loss = loss / len(range(self.n_known, self.n_classes))
 
                 dist_loss = None

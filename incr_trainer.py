@@ -210,9 +210,3 @@ class IncrementalTrainer(object):
 
         append_conf_mat_to_file(self.eval_file_path, conf_mats)
         utils.append_settings_to_file(self.eval_file_path, self.args)
-
-
-
-
-
-
