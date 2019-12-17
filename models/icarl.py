@@ -185,10 +185,11 @@ class Icarl(IncrementalModel):
             self.exemplar_path_sets[y] = P_y[:m]
 
     def combine_dataset_with_exemplars(self, dataset):
-        for y, P_y in enumerate(self.exemplar_path_sets):
-            exemplar_image_path = P_y
-            exemplar_labels = [y] * len(P_y)
-            dataset.append(list(zip(exemplar_image_path, exemplar_labels)), exemplar_labels)
+        if self.args.icarl_K != 0:
+            for y, P_y in enumerate(self.exemplar_path_sets):
+                exemplar_image_path = P_y
+                exemplar_labels = [y] * len(P_y)
+                dataset.append(list(zip(exemplar_image_path, exemplar_labels)), exemplar_labels)
 
     def _init_fn(self, worker_id):
         np.random.seed(int(self.args.seed))
