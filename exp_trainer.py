@@ -280,39 +280,22 @@ class exp_DCNN(object):
                     images = cuda(images, self.cuda)
                     labels = cuda(labels, self.cuda)
 
-                    if self.epoch_i == 1:
-                        # Update ring buffer storing examples from current task when first epoch
-                        bsz = labels.size(0)
-                        endcnt = min(self.mem_cnt + bsz, self.n_memories)
-                        effbsz = endcnt - self.mem_cnt
-                        self.memory_data[self.task_idx, self.mem_cnt: endcnt].copy_(
-                            images.data[: effbsz])
-                        if bsz == 1:
-                            self.memory_labs[self.task_idx, self.mem_cnt] = labels.data[0]
-                        else:
-                            self.memory_labs[self.task_idx, self.mem_cnt: endcnt].copy_(
-                                labels.data[: effbsz])
-                        self.mem_cnt += effbsz
-                        if self.mem_cnt == self.n_memories:
-                            self.mem_cnt = 0
+                    mem_data_size = (self.task_idx - (self.num_pre_tasks + self.memory_offset)) * self.n_memories
+                    if mem_data_size < self.train_batch_size:
+                        # allocate all images from memory if memory is not filled enough
+                        # TODO: sampled images index should be considered for so far oberved
+                        sampled_images = self.memory_data[:self.task_idx].view(-1, self.input_channel,
+                                                               self.image_size, self.image_size)
+                        sampled_labels = self.memory_labs.view(-1)
 
-                    if ((self.task_idx-self.num_pre_tasks) > 0) or self.pre_reg_param:
-                        # sample task_idx and memory_id
-                        mem_data_size = (self.task_idx - (self.num_pre_tasks + self.memory_offset)) * self.n_memories
-                        if mem_data_size < self.train_batch_size:
-                            # allocate all images from memory if memory is not filled enough
-                            sampled_images = self.memory_data.view(-1, self.input_channel,
-                                                                   self.image_size, self.image_size)
-                            sampled_labels = self.memory_labs.view(-1)
-
-                        else:
-                            # sample images from batch
-                            sampled_idx = torch.randint(mem_data_size, size=self.train_batch_size, dtype=torch.long)
-                            sampled_images = torch.index_select(
-                                self.memory_data.view(-1, self.input_channel, self.image_size, self.image_size),
-                                dim=0, index=sampled_idx
-                            )
-                            sampled_labels = torch.index_select(self.memory_labs.view(-1), dim=0, index=sampled_idx)
+                    else:
+                        # sample images from batch
+                        sampled_idx = torch.randint(mem_data_size, size=self.train_batch_size, dtype=torch.long)
+                        sampled_images = torch.index_select(
+                            self.memory_data.view(-1, self.input_channel, self.image_size, self.image_size),
+                            dim=0, index=sampled_idx
+                        )
+                        sampled_labels = torch.index_select(self.memory_labs.view(-1), dim=0, index=sampled_idx)
 
                     images = torch.cat((images, sampled_images))
                     labels = torch.cat((labels, sampled_labels))
@@ -344,6 +327,22 @@ class exp_DCNN(object):
                     total = labels.size(0)
                     correct = (predicted == (labels-offset1)).sum().item()
                     train_acc = 100 * correct / total
+
+                    # Update ring buffer storing examples from current task
+                    bsz = labels.size(0)
+                    endcnt = min(self.mem_cnt + bsz, self.n_memories)
+                    effbsz = endcnt - self.mem_cnt
+                    self.memory_data[self.task_idx, self.mem_cnt: endcnt].copy_(
+                        images.data[: effbsz])
+                    if bsz == 1:
+                        self.memory_labs[self.task_idx, self.mem_cnt] = labels.data[0]
+                    else:
+                        self.memory_labs[self.task_idx, self.mem_cnt: endcnt].copy_(
+                            labels.data[: effbsz])
+                    self.mem_cnt += effbsz
+                    if self.mem_cnt == self.n_memories:
+                        self.mem_cnt = 0
+
 
                     if self.global_iter % self.eval_period == 0:
 
