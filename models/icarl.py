@@ -233,7 +233,7 @@ class Icarl(IncrementalModel):
                 images = cuda(Variable(images), self.args.cuda)
                 indices = cuda(indices, self.args.cuda)
 
-                labels_onehot = torch.zeros(labels.size()[0], labels.max()+1).scatter_(1, labels.unsqueeze(1), 1.)
+                labels_onehot = torch.zeros(labels.size()[0], self.n_classes).scatter_(1, labels.unsqueeze(1), 1.)
                 labels_onehot = cuda(labels_onehot, self.args.cuda)
 
                 optimizer.zero_grad()
