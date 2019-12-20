@@ -6,6 +6,7 @@ from cont_trainer import cont_DCNN
 from bayes_cont_trainer import baye_DCNN
 from non_cont_trainer import DCNN
 from gem_trainer import gem_DCNN
+from exp_trainer import exp_DCNN
 
 from utils import str2bool, set_seed
 
@@ -26,6 +27,8 @@ def main(args):
             net = DCNN(args)
         elif args.continual == 'gem':
             net = gem_DCNN(args)
+        elif args.continual == 'er':
+            net = exp_DCNN(args)
         else:
             net = cont_DCNN(args)
     else:
@@ -92,7 +95,7 @@ if __name__ == "__main__":
     # Continual Learning
     parser.add_argument('--continual', default='', type=str, required=True, help='continual learning method',
                         choices=['ewc', 'hat_ewc', 'ewc_online', 'imm-mode',
-                                 'si', 'l2', 'ucl', 'mas', 'gem', 'none'])
+                                 'si', 'l2', 'ucl', 'mas', 'gem', 'er', 'none'])
 
     parser.add_argument('--pretrain', default=False, type=str2bool, help='only used with non continual trainer')
     parser.add_argument('--pre_reg_param', default=False, type=str2bool, help='compute regularization strength '

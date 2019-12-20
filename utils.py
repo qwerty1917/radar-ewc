@@ -165,6 +165,7 @@ def make_log_name(args):
 
     elif args.continual == 'gem':
         log_name += '_n_memories{}'.format(args.n_memories)
+        log_name += '_margin{}'.format(args.memory_strength)
 
     if args.pretrain or args.load_pretrain:
         log_name += '_pre_{}tasks'.format(args.num_pre_tasks)
