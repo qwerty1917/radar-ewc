@@ -106,7 +106,6 @@ class exp_DCNN(object):
         # Dataset
         self.data_loader, self.num_tasks = return_data(args)
 
-        self.margin = args.memory_strength
         self.n_memories = args.n_memories
         # allocate episodic memory
         # self.n_inputs = self.image_size ** 2
