@@ -62,7 +62,7 @@ class exp_DCNN(object):
         self.epoch = args.epoch
         self.epoch_i = 0
         self.task_idx = self.num_pre_tasks
-        self.train_batch_size = args.train_batch_size / 2
+        self.train_batch_size = int(args.train_batch_size / 2)
         self.lr = args.lr
 
         self.lr_decay = args.lr_decay
