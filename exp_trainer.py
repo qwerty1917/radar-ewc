@@ -289,7 +289,7 @@ class exp_DCNN(object):
 
                     else:
                         # sample images from batch
-                        sampled_idx = torch.randint(mem_data_size, size=self.train_batch_size, dtype=torch.long)
+                        sampled_idx = cuda(torch.randint(mem_data_size, (self.train_batch_size,), dtype=torch.long))
                         sampled_images = torch.index_select(
                             self.memory_data.view(-1, self.input_channel, self.image_size, self.image_size),
                             dim=0, index=sampled_idx
