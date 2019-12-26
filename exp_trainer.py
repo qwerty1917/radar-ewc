@@ -360,7 +360,7 @@ class exp_DCNN(object):
 
                             self.log_csv(self.task_idx, self.epoch_i, self.global_iter, train_loss.item(), train_acc,
                                          test_loss.item(), test_acc, filename=self.log_name)
-                            self.save_checkpoint(filename=self.log_name + '_ckpt.tar')
+                            # self.save_checkpoint(filename=self.log_name + '_ckpt.tar')
 
                 if self.lr_decay:
                     eval_loss, eval_acc = self.evaluate(self.task_idx)

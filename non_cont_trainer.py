@@ -238,30 +238,7 @@ class DCNN(object):
                 if self.global_iter % 10 == 0:
                     # make csv file
                     self.log_csv(self.task_idx, self.epoch_i, self.global_iter, train_loss.item(), train_acc, test_loss.item(), test_acc, filename=self.log_name)
-                    self.save_checkpoint(filename=self.log_name+'_ckpt.tar')
-
-                    # visdom
-                    if self.visdom:
-                        self.plotter.plot(var_name='loss',
-                                          split_name='train',
-                                          title_name=self.date + ' Current task Loss',
-                                          x=self.global_iter,
-                                          y=train_loss.item())
-                        self.plotter.plot(var_name='loss',
-                                          split_name='test',
-                                          title_name=self.date + ' Current task Loss',
-                                          x=self.global_iter,
-                                          y=test_loss.item())
-                        self.plotter.plot(var_name='acc.',
-                                          split_name='train',
-                                          title_name=self.date + ' Current task Accuracy',
-                                          x=self.global_iter,
-                                          y=train_acc)
-                        self.plotter.plot(var_name='acc.',
-                                          split_name='test',
-                                          title_name=self.date + ' Current task Accuracy',
-                                          x=self.global_iter,
-                                          y=test_acc)
+                    # self.save_checkpoint(filename=self.log_name+'_ckpt.tar')
 
             if self.lr_decay:
                 eval_loss, eval_acc = self.evaluate()

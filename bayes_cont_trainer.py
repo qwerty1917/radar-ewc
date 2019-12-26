@@ -277,64 +277,7 @@ class baye_DCNN(object):
                         if self.global_iter % 10 == 0:
                             # make csv file
                             self.log_csv(self.task_idx, self.epoch_i, self.global_iter, train_loss.item(), train_acc, test_loss.item(), test_acc, filename=self.log_name)
-                            self.save_checkpoint(filename=self.log_name+'_ckpt.tar')
-
-                            # visdom
-                            if self.visdom:
-                                self.plotter.plot(var_name='loss',
-                                                  split_name='train',
-                                                  title_name=self.date + ' Current task Loss' + ' lamb{}'.format(self.lamb),
-                                                  x=self.global_iter,
-                                                  y=train_loss.item())
-                                self.plotter.plot(var_name='loss',
-                                                  split_name='test',
-                                                  title_name=self.date + ' Current task Loss' + ' lamb{}'.format(self.lamb),
-                                                  x=self.global_iter,
-                                                  y=test_loss.item())
-                                self.plotter.plot(var_name='acc.',
-                                                  split_name='train',
-                                                  title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(self.lamb),
-                                                  x=self.global_iter,
-                                                  y=train_acc)
-                                self.plotter.plot(var_name='acc.',
-                                                  split_name='test',
-                                                  title_name=self.date + ' Current task Accuracy' + ' lamb{}'.format(self.lamb),
-                                                  x=self.global_iter,
-                                                  y=test_acc)
-
-                                task_loss_sum = 0
-                                task_acc_sum = 0
-                                for old_task_idx in range(self.task_idx+1):
-                                    eval_loss, eval_acc = self.evaluate(old_task_idx)
-                                    if not isinstance(eval_loss, float):
-                                        eval_loss = eval_loss.item()
-
-                                    task_loss_sum += eval_loss
-                                    task_acc_sum += eval_acc
-                                    self.plotter.plot(var_name='task acc.',
-                                                      split_name='task {}'.format(old_task_idx+1),
-                                                      title_name=self.date + ' Task Accuracy' + ' lamb{}'.format(self.lamb),
-                                                      x=self.global_iter,
-                                                      y=eval_acc)
-
-                                    self.plotter.plot(var_name='task loss',
-                                                      split_name='task {}'.format(old_task_idx+1),
-                                                      title_name=self.date + ' Task Loss' + ' lamb{}'.format(self.lamb),
-                                                      x=self.global_iter,
-                                                      y=eval_loss)
-
-                                self.plotter.plot(var_name='task average acc.',
-                                                  split_name='until task {}'.format(self.task_idx+1),
-                                                  title_name = self.date + ' Task average acc.' + ' lamb{}'.format(self.lamb),
-                                                  x=self.global_iter,
-                                                  y=task_acc_sum/(self.task_idx+1))
-
-                                self.plotter.plot(var_name='task average loss',
-                                                  split_name='until task {}'.format(self.task_idx+1),
-                                                  title_name = self.date + ' Task average loss' + ' lamb{}'.format(self.lamb),
-                                                  x=self.global_iter,
-                                                  y=task_loss_sum/(self.task_idx+1))
-
+                            # self.save_checkpoint(filename=self.log_name+'_ckpt.tar')
 
                 if self.lr_decay:
                     eval_loss, eval_acc = self.evaluate(self.task_idx)
