@@ -269,7 +269,9 @@ class exp_DCNN(object):
                 lr = self.lr
                 patience = self.lr_patience
                 self.C_optim = self._get_optimizer(lr)
-            self.mem_unfilled = 1
+
+            current_mem_cursor = 0
+
             while True:
                 if self.epoch_i >= self.epoch or early_stop:
                     self.epoch_i = 0
@@ -279,20 +281,20 @@ class exp_DCNN(object):
                 for i, (images, labels) in enumerate(data_loader):
                     images = cuda(images, self.cuda)
                     labels = cuda(labels, self.cuda)
-                    mem_data_size = ((self.task_idx+1 - self.mem_unfilled)
-                                     - (self.num_pre_tasks - self.memory_offset)) * self.n_memories
+
+                    mem_data_size = (self.task_idx - (self.num_pre_tasks - self.memory_offset)) * self.n_memories \
+                                    + current_mem_cursor
+
                     if mem_data_size < self.train_batch_size:
                         # allocate all images from memory if memory is not filled enough
-                        sampled_images = self.memory_data[(self.num_pre_tasks-self.memory_offset):
-                                                          (self.task_idx+1-self.mem_unfilled)].view(
-                            -1, self.input_channel, self.image_size, self.image_size)
-                        sampled_labels = self.memory_labs[(self.num_pre_tasks-self.memory_offset):
-                                                          (self.task_idx+1-self.mem_unfilled)].view(-1)
+                        sampled_images = self.memory_data.view(-1, self.input_channel,
+                                                               self.image_size, self.image_size)[:mem_data_size]
+                        sampled_labels = self.memory_labs.view(-1)[:mem_data_size]
 
                     else:
                         # sample images from batch
-                        sampled_idx = cuda(torch.randint(mem_data_size, (self.train_batch_size,), dtype=torch.long),
-                                           self.cuda)
+                        sampled_idx = np.random.choice(mem_data_size, self.train_batch_size, replace=False)
+                        sampled_idx = cuda(torch.from_numpy(sampled_idx), self.cuda)
                         sampled_images = torch.index_select(
                             self.memory_data.view(-1, self.input_channel, self.image_size, self.image_size),
                             dim=0, index=sampled_idx
@@ -342,11 +344,11 @@ class exp_DCNN(object):
                         self.memory_labs[self.task_idx, self.mem_cnt: endcnt].copy_(
                             labels.data[: effbsz])
                     self.mem_cnt += effbsz
+                    current_mem_cursor += effbsz
+                    current_mem_cursor = min(current_mem_cursor, self.n_memories)
+
                     if self.mem_cnt == self.n_memories:
                         self.mem_cnt = 0
-
-                    self.mem_unfilled = 0
-
 
                     if self.global_iter % self.eval_period == 0:
 
