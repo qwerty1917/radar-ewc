@@ -299,14 +299,14 @@ class exp_DCNN(object):
                         )
                         sampled_labels = torch.index_select(self.memory_labs.view(-1), dim=0, index=sampled_idx)
 
-                    images = torch.cat((images, sampled_images))
-                    labels = torch.cat((labels, sampled_labels))
+                    cat_images = torch.cat((images, sampled_images))
+                    cat_labels = torch.cat((labels, sampled_labels))
 
                     self.C.zero_grad()
 
                     offset1, offset2 = self.compute_offsets(self.task_idx, self.nc_per_task, self.is_incremental)
-                    outputs = self.forward(images, self.task_idx)[:, offset1: offset2]
-                    train_loss = self.criterion(outputs, labels - offset1)
+                    outputs = self.forward(cat_images, self.task_idx)[:, offset1: offset2]
+                    train_loss = self.criterion(outputs, cat_labels - offset1)
                     train_loss.backward()
 
 
@@ -326,8 +326,8 @@ class exp_DCNN(object):
 
                     # train acc
                     _, predicted = torch.max(outputs, 1)
-                    total = labels.size(0)
-                    correct = (predicted == (labels-offset1)).sum().item()
+                    total = cat_labels.size(0)
+                    correct = (predicted == (cat_labels-offset1)).sum().item()
                     train_acc = 100 * correct / total
 
                     # Update ring buffer storing examples from current task
