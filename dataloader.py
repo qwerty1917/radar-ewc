@@ -21,8 +21,10 @@ def return_data(args):
     set_seed(args.model_seed)
     if args.subject_shuffle:
         random.seed(args.subject_seed)
-
-    train_batch_size = args.train_batch_size
+    if args.continual=='er':
+        train_batch_size = int(args.train_batch_size / 2)
+    else:
+        train_batch_size = args.train_batch_size
     test_batch_size = args.test_batch_size
     num_workers = args.num_workers
     image_size = args.image_size
