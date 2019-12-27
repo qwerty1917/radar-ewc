@@ -269,7 +269,7 @@ class exp_DCNN(object):
                 lr = self.lr
                 patience = self.lr_patience
                 self.C_optim = self._get_optimizer(lr)
-            mem_unfilled = 1
+            self.mem_unfilled = 1
             while True:
                 if self.epoch_i >= self.epoch or early_stop:
                     self.epoch_i = 0
@@ -279,13 +279,13 @@ class exp_DCNN(object):
                 for i, (images, labels) in enumerate(data_loader):
                     images = cuda(images, self.cuda)
                     labels = cuda(labels, self.cuda)
-                    mem_data_size = ((self.task_idx+1 - mem_unfilled) -
-                                     (self.num_pre_tasks + self.memory_offset)) * self.n_memories
+                    mem_data_size = ((self.task_idx+1 - self.mem_unfilled)
+                                     - (self.num_pre_tasks - self.memory_offset)) * self.n_memories
                     if mem_data_size < self.train_batch_size:
                         # allocate all images from memory if memory is not filled enough
-                        sampled_images = self.memory_data[:self.task_idx+1-mem_unfilled].view(-1, self.input_channel,
+                        sampled_images = self.memory_data[:self.task_idx+1-self.mem_unfilled].view(-1, self.input_channel,
                                                                self.image_size, self.image_size)
-                        sampled_labels = self.memory_labs[:self.task_idx+1-mem_unfilled].view(-1)
+                        sampled_labels = self.memory_labs[:self.task_idx+1-self.mem_unfilled].view(-1)
 
                     else:
                         # sample images from batch
@@ -343,7 +343,7 @@ class exp_DCNN(object):
                     if self.mem_cnt == self.n_memories:
                         self.mem_cnt = 0
 
-                    mem_unfilled = 0
+                    self.mem_unfilled = 0
 
 
                     if self.global_iter % self.eval_period == 0:
