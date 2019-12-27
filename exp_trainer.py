@@ -110,6 +110,7 @@ class exp_DCNN(object):
         # allocate episodic memory
         # self.n_inputs = self.image_size ** 2
         self.memory_offset = self.num_pre_tasks if self.pre_reg_param else 0
+        self.mem_start = (self.num_pre_tasks - self.memory_offset) * self.n_memories
         self.memory_data = torch.FloatTensor(self.num_tasks, self.n_memories,
                                              self.input_channel, self.image_size, self.image_size)
         self.memory_labs = torch.LongTensor(self.num_tasks, self.n_memories)
@@ -287,14 +288,18 @@ class exp_DCNN(object):
 
                     if mem_data_size < self.train_batch_size:
                         # allocate all images from memory if memory is not filled enough
-                        sampled_images = self.memory_data.view(-1, self.input_channel,
-                                                               self.image_size, self.image_size)[:mem_data_size]
-                        sampled_labels = self.memory_labs.view(-1)[:mem_data_size]
+                        sampled_images = self.memory_data.view(-1,
+                                                               self.input_channel,
+                                                               self.image_size,
+                                                               self.image_size
+                                                               )[self.mem_start:self.mem_start+mem_data_size]
+                        sampled_labels = self.memory_labs.view(-1)[self.mem_start:self.mem_start+mem_data_size]
 
                     else:
                         # sample images from batch
                         sampled_idx = np.random.choice(mem_data_size, self.train_batch_size, replace=False)
-                        sampled_idx = cuda(torch.from_numpy(sampled_idx), self.cuda)
+                        sampled_idx = torch.from_numpy(sampled_idx) + self.mem_start
+                        sampled_idx = cuda(sampled_idx, self.cuda)
                         sampled_images = torch.index_select(
                             self.memory_data.view(-1, self.input_channel, self.image_size, self.image_size),
                             dim=0, index=sampled_idx
