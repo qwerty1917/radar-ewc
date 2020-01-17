@@ -29,11 +29,17 @@ class Icarl(IncrementalModel):
         fc2_features = self.feature_size
 
         self.feature_extractor.fc_layers = nn.Sequential(
-            nn.Linear(fc1_features, fc2_features)
+            nn.Linear(fc1_features, 128),
+            nn.ReLU(),
+            nn.Dropout(0.4),
+
+            nn.Linear(128, fc2_features),
+            nn.ReLU(),
+            nn.Dropout(0.4),
         )
 
-        self.bn = nn.BatchNorm1d(self.feature_size, momentum=0.01)
-        self.ReLU = nn.ReLU()
+        # self.bn = nn.BatchNorm1d(self.feature_size, momentum=0.01)
+        # self.ReLU = nn.ReLU()
         self.fc = nn.Linear(self.feature_size, 1, bias=False)
 
         self.n_classes = 1
@@ -58,8 +64,8 @@ class Icarl(IncrementalModel):
 
     def forward(self, x):
         x = self.feature_extractor(x)
-        x = self.bn(x)
-        x = self.ReLU(x)
+        # x = self.bn(x)
+        # x = self.ReLU(x)
         x = self.fc(x)
 
         return x
@@ -257,11 +263,11 @@ class Icarl(IncrementalModel):
 
                 if self.args.icarl_fixed_rep and current_class_count > 2:
                     if epoch_i == 0:
-                        for param in self.feature_extractor.fc_layers[-1].parameters():
+                        for param in self.feature_extractor.parameters():
                             param.requires_grad = True
 
                     else:
-                        for param in self.feature_extractor.fc_layers[-1].parameters():
+                        for param in self.feature_extractor.parameters():
                             param.requires_grad = False
 
                     fc_grad = self.fc.weight.grad
