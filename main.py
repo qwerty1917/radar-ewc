@@ -112,6 +112,7 @@ if __name__ == "__main__":
 
     # class incremental
     parser.add_argument('--class_incremental', default=False, type=str2bool, help='class incremental learning')
+    parser.add_argument('--ring_buffer', default=False, type=str2bool, help='ring buffer memory')
 
     # icarl
     parser.add_argument('--icarl', default=False, type=str2bool, help='iCaRL')

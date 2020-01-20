@@ -42,7 +42,10 @@ class GemInc(IncrementalModel):
         # allocate episodic memory
         self.memory_data = cuda(torch.zeros([self.M, args.channel, args.image_size, args.image_size], dtype=torch.float), self.args.cuda)
         self.memory_labs = cuda(torch.zeros([self.M], dtype=torch.long), self.args.cuda)
-        self.memory_n_per_class = self.M
+        if self.args.ring_buffer:
+            self.memory_n_per_class = self.M // 7
+        else:
+            self.memory_n_per_class = self.M
 
         # allocate temporary synaptic memory
         self.grad_dims = []
@@ -205,8 +208,12 @@ class GemInc(IncrementalModel):
         old_class_n = self.n_start + max(0, (self.cur_task - 1) * self.nc_per_task)
         new_class_n = self.n_start + self.cur_task * self.nc_per_task
 
-        old_sample_n_per_class = self.M // old_class_n
-        new_sample_n_per_class = self.M // new_class_n
+        if self.args.ring_buffer:
+            old_sample_n_per_class = self.M // 7
+            new_sample_n_per_class = self.M // 7
+        else:
+            old_sample_n_per_class = self.M // old_class_n
+            new_sample_n_per_class = self.M // new_class_n
 
         new_exemplar_data = cuda(torch.zeros_like(self.memory_data), self.args.cuda)
         new_exemplar_labs = cuda(torch.zeros_like(self.memory_labs), self.args.cuda)

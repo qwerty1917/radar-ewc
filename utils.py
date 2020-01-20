@@ -163,18 +163,20 @@ def make_log_name(args):
         log_name += '_replay_r{}_gp_lamb{}'.format(args.replay_r, args.gan_gp_lambda)
     elif args.icarl:
         log_name += '_icarl'
-        log_name += '_K{}_num_cls_per_task{}_feature_size{}_fixed_rep{}_rand_exam{}'.format(args.icarl_K,
-                                                                                args.icarl_num_cls_per_task,
-                                                                                args.icarl_feature_size,
-                                                                                args.icarl_fixed_rep,
-                                                                                args.icarl_random_example)
+        log_name += '_K{}_num_cls_per_task{}_feature_size{}_fixed_rep{}_rand_exam{}_ring_buffer{}'.format(args.icarl_K,
+                                                                                                          args.icarl_num_cls_per_task,
+                                                                                                          args.icarl_feature_size,
+                                                                                                          args.icarl_fixed_rep,
+                                                                                                          args.icarl_random_example,
+                                                                                                          args.ring_buffer)
     elif args.gem_inc:
         log_name += '_gem_inc'
-        log_name += '_M{}_num_cls_per_task{}_mem_strength{}_grad_scale{}_prj_except_last_fc{}'.format(args.gem_inc_M,
-                                                                                                      args.gem_inc_num_cls_per_task,
-                                                                                                      args.gem_inc_mem_strength,
-                                                                                                      args.gem_inc_gradient_scale,
-                                                                                                      args.gem_inc_prj_except_last_fc)
+        log_name += '_M{}_num_cls_per_task{}_mem_strength{}_grad_scale{}_prj_except_last_fc{}_ring_buffer{}'.format(args.gem_inc_M,
+                                                                                                                    args.gem_inc_num_cls_per_task,
+                                                                                                                    args.gem_inc_mem_strength,
+                                                                                                                    args.gem_inc_gradient_scale,
+                                                                                                                    args.gem_inc_prj_except_last_fc,
+                                                                                                                    args.ring_buffer)
     else:
         log_name += '_fine'
 

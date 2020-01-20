@@ -161,7 +161,11 @@ class Icarl(IncrementalModel):
         self.exemplar_path_sets.append(np.array(exemplar_path_set))
 
     def update_exemplar_sets(self, dataset=None):
-        self.m = self.K // self.n_classes
+        if self.args.ring_buffer:
+            self.m = self.K // 7
+        else:
+            self.m = self.K // self.n_classes
+
         if self.K != 0:
             self.reduce_exemplar_sets(self.m)
 
