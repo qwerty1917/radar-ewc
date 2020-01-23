@@ -70,7 +70,7 @@ if __name__ == "__main__":
     # Visualization / Log
     parser.add_argument('--env_name', default='main', type=str, help='experiment name')
     parser.add_argument('--reset_env', default=False, type=str2bool, help='delete log folders')
-    parser.add_argument('--visdom', default=True, type=str2bool, help='enable visdom')
+    parser.add_argument('--visdom', default=False, type=str2bool, help='enable visdom')
     parser.add_argument('--visdom_port', default=8085, type=int, help='visdom port number')
     parser.add_argument('--output_dir', default='cnn_output', type=str, help='inter train result directory')
 
@@ -130,6 +130,13 @@ if __name__ == "__main__":
     parser.add_argument('--gem_inc_n_tasks', default=6, type=int, help='GEM inc task number')
     parser.add_argument('--gem_inc_num_cls_per_task', default=1, type=int, help='number of added classes per task')
     parser.add_argument('--gem_inc_prj_except_last_fc', default=False, type=str2bool, help='project gradient except output layer')
+
+    # Experience Replay
+    parser.add_argument('--er', default=False, type=str2bool, help='Experience Replay')
+    parser.add_argument('--er_M', default=20, type=int, help='ER inc memory size')
+    parser.add_argument('--er_n_tasks', default=6, type=int, help='ER inc task number')
+    parser.add_argument('--er_num_cls_per_task', default=1, type=int, help='ER number of added classes per task')
+
 
     args = parser.parse_args()
 

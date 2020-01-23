@@ -177,6 +177,11 @@ def make_log_name(args):
                                                                                                                     args.gem_inc_gradient_scale,
                                                                                                                     args.gem_inc_prj_except_last_fc,
                                                                                                                     args.ring_buffer)
+    elif args.er:
+        log_name += '_er'
+        log_name += '_M{}_num_cls_per_task{}_ring_buffer{}'.format(args.er_M,
+                                                                   args.er_num_cls_per_task,
+                                                                   args.ring_buffer)
     else:
         log_name += '_fine'
 

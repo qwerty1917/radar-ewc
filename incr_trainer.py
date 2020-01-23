@@ -15,6 +15,7 @@ from gan_trainer import WGAN
 from models.cnn import Dcnn
 from models.icarl import Icarl
 from models.gem_inc import GemInc
+from models.er import ER
 from utils import cuda, make_log_name, check_log_dir, VisdomPlotter, VisdomImagesPlotter, set_seed, append_conf_mat_to_file
 
 
@@ -44,7 +45,7 @@ class IncrementalTrainer(object):
 
         # Evaluation
         # self.eval_dir = Path(args.eval_dir).joinpath(args.env_name)
-        self.eval_dir = args.eval_dir
+        self.eval_dir = args.eval_dir + self.args.date + '/'
         check_log_dir(self.eval_dir)
         self.log_name = make_log_name(args)
         self.eval_file_path = self.eval_dir + self.log_name + '.txt'
@@ -79,6 +80,8 @@ class IncrementalTrainer(object):
             self.model = Icarl(args=self.args)
         elif self.args.gem_inc:
             self.model = GemInc(args=self.args)
+        elif self.args.er:
+            self.model = ER(args=self.args)
         else:
             raise ValueError("incremental learning should choose at least one method")
         self.model.apply(weights_init)
