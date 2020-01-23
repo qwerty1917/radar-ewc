@@ -126,7 +126,7 @@ class ER(IncrementalModel):
             new_sample_n_per_class = self.M // new_class_n
 
         new_exemplar_data = cuda(torch.zeros_like(self.memory_data), self.args.cuda)
-        new_exemplar_path = [''] * self.M
+        new_exemplar_path = [''] * new_sample_n_per_class * new_class_n
         new_exemplar_labs = cuda(torch.zeros_like(self.memory_labs), self.args.cuda)
 
         for old_task_i in self.observed_tasks:
