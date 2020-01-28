@@ -34,7 +34,7 @@ class ER(IncrementalModel):
         self.loss = nn.CrossEntropyLoss()
 
         # Opt
-        self.opt = optim.SGD(self.parameters(), lr=args.lr)
+        self.opt = optim.Adam(self.parameters(), lr=args.lr)
 
         # allocate episodic memory
         self.memory_data = cuda(torch.zeros([self.M, args.channel, args.image_size, args.image_size], dtype=torch.float), self.args.cuda)
