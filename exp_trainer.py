@@ -59,6 +59,7 @@ class exp_DCNN(object):
         self.multi_gpu = args.multi_gpu
 
         # Optimization
+        self.optim = args.optim
         self.epoch = args.epoch
         self.epoch_i = 0
         self.task_idx = self.num_pre_tasks
@@ -132,7 +133,10 @@ class exp_DCNN(object):
 
     def _get_optimizer(self, lr=None):
         if lr is None: lr = self.lr
-        return optim.Adam(self.C.parameters(), lr=lr)
+        if self.optim == 'adam':
+            return optim.Adam(self.C.parameters(), lr=lr)
+        else:
+            return optim.SGD(self.C.parameters(), lr=lr)
 
     def model_init(self):
         # TODO: CNN model_init
