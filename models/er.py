@@ -80,7 +80,7 @@ class ER(IncrementalModel):
             self.cuda()
 
         # get dataloader
-        self.combine_dataset_with_exemplars(dataset)
+        # self.combine_dataset_with_exemplars(dataset)
         current_task_loader = DataLoader(dataset, batch_size=self.args.train_batch_size,
                             shuffle=True, num_workers=self.args.num_workers,
                             pin_memory=True, worker_init_fn=self._init_fn)
@@ -99,11 +99,23 @@ class ER(IncrementalModel):
 
                 train_loss.backward()
 
+                # compute gradients on passed tasks
+                images = cuda(Variable(self.memory_data), self.args.cuda)
+                labels = cuda(Variable(self.memory_labs), self.args.cuda)
+
+                output = self.forward(images)
+                train_loss = self.loss(output, labels.type(torch.long))
+
+                train_loss.backward()
+
+                # update memory
+                self.update_exemplar_sets(dataset)
+
                 self.opt.step()
             print("epoch {}/{} train loss {}".format(epoch_i, self.args.epoch, train_loss))
 
-        # update memory
-        self.update_exemplar_sets(dataset)
+        # # update memory
+        # self.update_exemplar_sets(dataset)
 
         # update counters
         self.observed_tasks.append(self.cur_task)
@@ -172,7 +184,7 @@ class ER(IncrementalModel):
         self.memory_labs = new_exemplar_labs
 
         self.memory_n_per_class = new_sample_n_per_class
-        print("Exemplar set updated.")
+        # print("Exemplar set updated. mem len: {}".format(len(self.memory_path)))
 
     def update_n_known(self):
         self.n_known = self.n_classes
