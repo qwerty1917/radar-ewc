@@ -86,6 +86,7 @@ class ER(IncrementalModel):
                             pin_memory=True, worker_init_fn=self._init_fn)
 
         # update params
+        first_update_of_task = True
         for epoch_i in range(self.args.epoch):
             # compute grad on merged dataset
             for i, (indices, images, labels, _) in enumerate(current_task_loader):
@@ -109,9 +110,10 @@ class ER(IncrementalModel):
                 train_loss.backward()
 
                 # update memory
-                self.update_exemplar_sets(dataset)
+                self.update_exemplar_sets(dataset, first_update_of_task)
 
                 self.opt.step()
+                first_update_of_task = False
             print("epoch {}/{} train loss {}".format(epoch_i, self.args.epoch, train_loss))
 
         # # update memory
@@ -126,9 +128,11 @@ class ER(IncrementalModel):
         if self.M != 0 and self.cur_task > 0:
             dataset.append(list(zip(self.memory_path, self.memory_labs.tolist())), self.memory_labs.tolist())
 
-    def update_exemplar_sets(self, dataset: IcarlDataset):
+    def update_exemplar_sets(self, dataset: IcarlDataset, first_update_of_task=False):
         old_class_n = self.n_start + max(0, (self.cur_task - 1) * self.nc_per_task)
         new_class_n = self.n_start + self.cur_task * self.nc_per_task
+        if not first_update_of_task:
+            old_class_n = new_class_n
 
         if self.args.ring_buffer:
             old_sample_n_per_class = self.M // 7
