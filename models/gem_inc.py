@@ -37,7 +37,12 @@ class GemInc(IncrementalModel):
         self.loss = nn.CrossEntropyLoss()
 
         # Opt
-        self.opt = optim.Adam(self.parameters(), lr=args.lr)
+        if self.args.opt == 'adam':
+            self.optimizer = optim.Adam(self.parameters(), lr=args.lr)
+        elif self.args.opt == 'sgd':
+            self.optimizer = optim.SGD(self.parameters(), lr=args.lr)
+        else:
+            raise ValueError("self.args.opt must be adam/sgd. input is {}".format(self.args.opt))
 
         # allocate episodic memory
         self.memory_data = cuda(torch.zeros([self.M, args.channel, args.image_size, args.image_size], dtype=torch.float), self.args.cuda)
@@ -169,7 +174,8 @@ class GemInc(IncrementalModel):
 
             # compute grad on current tasks
             for i, (indices, images, labels, _) in enumerate(current_task_loader):
-                self.zero_grad()
+                if i == 0 or self.args.reset_grad_every_iter:
+                    self.zero_grad()
                 # compute gradients on current tasks
                 images = cuda(Variable(images), self.args.cuda)
                 labels = cuda(Variable(labels), self.args.cuda)
@@ -197,7 +203,7 @@ class GemInc(IncrementalModel):
                         self.overwrite_grad(self.grads[:, self.cur_task],
                                             self.grad_dims)
 
-                self.opt.step()
+                self.optimizer.step()
 
         # update counters
         self.observed_tasks.append(self.cur_task)

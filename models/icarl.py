@@ -56,7 +56,13 @@ class Icarl(IncrementalModel):
         # Learning method
         self.cls_loss = nn.BCELoss()
         self.dist_loss = nn.BCELoss()
-        self.optimizer = optim.Adam(self.parameters(), lr=args.lr)
+
+        if self.args.opt == 'adam':
+            self.optimizer = optim.Adam(self.parameters(), lr=args.lr)
+        elif self.args.opt == 'sgd':
+            self.optimizer = optim.SGD(self.parameters(), lr=args.lr)
+        else:
+            raise ValueError("self.args.opt must be adam/sgd. input is {}".format(self.args.opt))
 
         # Means of exemplars
         self.compute_means = True
@@ -240,13 +246,14 @@ class Icarl(IncrementalModel):
         iteration = 0
         for epoch_i in range(self.args.epoch):
             for i, (indices, images, labels, _) in enumerate(loader):
+                if i == 0 or self.args.reset_grad_every_iter:
+                    optimizer.zero_grad()
                 images = cuda(Variable(images), self.args.cuda)
                 indices = cuda(indices, self.args.cuda)
 
                 labels_onehot = torch.zeros(labels.size()[0], self.n_classes).scatter_(1, labels.unsqueeze(1), 1.)
                 labels_onehot = cuda(labels_onehot, self.args.cuda)
 
-                optimizer.zero_grad()
                 g = self.forward(images)
                 g = F.sigmoid(g)
 

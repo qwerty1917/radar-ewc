@@ -145,6 +145,8 @@ def make_log_name(args):
 
     log_name += '_seed{}'.format(args.seed)
     log_name += '_window{}'.format(args.time_window)
+    log_name += '_opt{}'.format(args.opt)
+    log_name += '_reset_grad_every_iter{}'.format(args.reset_grad_every_iter)
 
     if args.ewc:
         log_name += '_ewc'

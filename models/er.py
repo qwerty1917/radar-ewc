@@ -34,12 +34,18 @@ class ER(IncrementalModel):
         self.loss = nn.CrossEntropyLoss()
 
         # Opt
-        self.opt = optim.Adam(self.parameters(), lr=args.lr)
+        if self.args.opt == 'adam':
+            self.opt = optim.Adam(self.parameters(), lr=args.lr)
+        elif self.args.opt == 'sgd':
+            self.opt = optim.SGD(self.parameters(), lr=args.lr)
+        else:
+            raise ValueError("self.args.opt must be adam/sgd. input is {}".format(self.args.opt))
 
         # allocate episodic memory
         self.memory_data = cuda(torch.zeros([self.M, args.channel, args.image_size, args.image_size], dtype=torch.float), self.args.cuda)
         self.memory_path = [''] * self.M
         self.memory_labs = cuda(torch.zeros([self.M], dtype=torch.long), self.args.cuda)
+        self.memory_count = 0
         if self.args.ring_buffer:
             self.memory_n_per_class = self.M // 7
         else:
@@ -90,7 +96,8 @@ class ER(IncrementalModel):
         for epoch_i in range(self.args.epoch):
             # compute grad on merged dataset
             for i, (indices, images, labels, _) in enumerate(current_task_loader):
-                self.zero_grad()
+                if i == 0 or self.args.reset_grad_every_iter:
+                    self.zero_grad()
                 # compute gradients on current tasks
                 images = cuda(Variable(images), self.args.cuda)
                 labels = cuda(Variable(labels), self.args.cuda)
@@ -101,13 +108,14 @@ class ER(IncrementalModel):
                 train_loss.backward()
 
                 # compute gradients on passed tasks
-                images = cuda(Variable(self.memory_data), self.args.cuda)
-                labels = cuda(Variable(self.memory_labs), self.args.cuda)
+                if self.memory_count > 0:
+                    images = cuda(Variable(self.memory_data[:self.memory_count]), self.args.cuda)
+                    labels = cuda(Variable(self.memory_labs[:self.memory_count]), self.args.cuda)
 
-                output = self.forward(images)
-                train_loss = self.loss(output, labels.type(torch.long))
+                    output = self.forward(images)
+                    train_loss = self.loss(output, labels.type(torch.long))
 
-                train_loss.backward()
+                    train_loss.backward()
 
                 # update memory
                 self.update_exemplar_sets(dataset, first_update_of_task)
@@ -189,6 +197,9 @@ class ER(IncrementalModel):
 
         self.memory_n_per_class = new_sample_n_per_class
         # print("Exemplar set updated. mem len: {}".format(len(self.memory_path)))
+
+        self.memory_count = new_sample_n_per_class * new_class_n
+        # print("self.memory_count {}".format(self.memory_count))
 
     def update_n_known(self):
         self.n_known = self.n_classes

@@ -44,6 +44,8 @@ if __name__ == "__main__":
 
     # Optimization
     parser.add_argument('--epoch', default=20, type=int, help='epoch size')
+    parser.add_argument('--opt', default='adam', type=str, help='optimizer adam/sgd')
+    parser.add_argument('--reset_grad_every_iter', default=True, type=str2bool, help='true if reset grad every iter / false if reset grad each epoch')
     parser.add_argument('--train_batch_size', default=16, type=int, help='train batch size')
     parser.add_argument('--test_batch_size', default=3, type=int, help='test batch size')
     parser.add_argument('--lr', default=0.001, type=float, help='learning rate for the network')
