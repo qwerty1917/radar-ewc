@@ -154,7 +154,7 @@ class gem_DCNN(object):
 
         self.C.apply(weights_init)
 
-        self.C_optim = optim.Adam(self.C.parameters(), lr=self.lr)
+        self.C_optim = self._get_optimizer(self.lr)
 
         if self.cuda:
             self.C = cuda(self.C, self.cuda)
